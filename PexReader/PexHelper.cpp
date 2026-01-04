@@ -141,7 +141,20 @@ private:
 #endif
     }
 
+
     void ReadStringTable(std::ifstream& f)
+    {
+        stringTable.count = ReadUInt16BE(f);
+        stringTable.strings.resize(stringTable.count);
+
+        for (uint16_t i = 0; i < stringTable.count; ++i)
+        {
+            stringTable.strings[i] = ReadBytes(f);
+            PrintHexAndText(stringTable.strings[i]);
+        }
+    }
+
+    /*void ReadStringTable(std::ifstream& f)
     {
         stringTable.count = ReadUInt16BE(f);
         stringTable.strings.resize(stringTable.count);
@@ -209,7 +222,7 @@ private:
                 std::cout << "UTF-8 Data: " << strFromData << std::endl;
             }
         }
-    }
+    }*/
 
     void ReadDebugInfo(std::ifstream& f)
     {
@@ -220,7 +233,6 @@ private:
         {
             debugInfo.modificationTime = ReadUInt64BE(f);
             debugInfo.functionCount = ReadUInt16BE(f);
-            std::cout << "  Debug function count: " << debugInfo.functionCount << std::endl;
             debugInfo.functions.resize(debugInfo.functionCount);
 
             for (uint16_t i = 0; i < debugInfo.functionCount; ++i)
@@ -260,7 +272,6 @@ private:
     void ReadObjects(std::ifstream& f)
     {
         objectCount = ReadUInt16BE(f);
-        std::cout << "  Object count: " << objectCount << std::endl;
         objects.reserve(objectCount);
 
         for (uint16_t i = 0; i < objectCount; ++i)
@@ -268,14 +279,8 @@ private:
             uint16_t nameIndex = ReadUInt16BE(f);
             uint32_t size = ReadUInt32BE(f);
 
-            std::cout << "  Object " << i << ": " << stringTable.toUtf8(nameIndex)
-                << " (size: " << size << ")" << std::endl;
-            std::cout << "    Position before data: " << f.tellg() << std::endl;
-
             objects.emplace_back(nameIndex, size);
             ReadObjectData(f, objects.back().data);
-
-            std::cout << "    Position after data: " << f.tellg() << std::endl;
         }
     }
 
@@ -288,32 +293,25 @@ private:
 
         // Variables
         data.numVariables = ReadUInt16BE(f);
-        std::cout << "      Variables: " << data.numVariables << std::endl;
         data.variables.resize(data.numVariables);
         for (uint16_t i = 0; i < data.numVariables; ++i)
         {
-            std::cout << "        Reading variable " << i << " at position " << f.tellg() << std::endl;
-
             ReadVariable(f, data.variables[i]);
         }
 
         // Properties
         data.numProperties = ReadUInt16BE(f);
-        std::cout << "      Properties: " << data.numProperties << std::endl;
         data.properties.resize(data.numProperties);
         for (uint16_t i = 0; i < data.numProperties; ++i)
         {
-            std::cout << "        Reading property " << i << " at position " << f.tellg() << std::endl;
             ReadProperty(f, data.properties[i]);
         }
 
         // States
         data.numStates = ReadUInt16BE(f);
-        std::cout << "      States: " << data.numStates << std::endl;
         data.states.resize(data.numStates);
         for (uint16_t i = 0; i < data.numStates; ++i)
         {
-            std::cout << "        Reading state " << i << " at position " << f.tellg() << std::endl;
             ReadState(f, data.states[i]);
         }
     }
@@ -323,8 +321,7 @@ private:
         var.name = ReadUInt16BE(f);
         var.typeName = ReadUInt16BE(f);
         var.userFlags = ReadUInt32BE(f);
-        std::cout << "          Variable: " << stringTable.toUtf8(var.name)
-            << " : " << stringTable.toUtf8(var.typeName) << std::endl;
+
         ReadVariableData(f, var.data, true);
     }
 
@@ -332,9 +329,6 @@ private:
     {
         std::streampos pos = f.tellg();
         data.type = ReadUInt8(f);
-
-        std::cout << "            VariableData type: " << static_cast<int>(data.type)
-            << " at position " << pos << std::endl;
 
         switch (data.type)
         {
@@ -380,9 +374,6 @@ private:
         prop.userFlags = ReadUInt32BE(f);
         prop.flags = ReadUInt8(f);
 
-        std::cout << "          Property: " << stringTable.toUtf8(prop.name)
-            << " flags: " << static_cast<int>(prop.flags) << std::endl;
-
         // autoVarName (if flags & 4)
         if (prop.flags & 4)
         {
@@ -392,14 +383,12 @@ private:
         // readHandler (if flags & 5 == 1)
         if ((prop.flags & 5) == 1)
         {
-            std::cout << "            Reading readHandler..." << std::endl;
             ReadFunction(f, prop.readHandler);
         }
 
         // writeHandler (if flags & 6 == 2)
         if ((prop.flags & 6) == 2)
         {
-            std::cout << "            Reading writeHandler..." << std::endl;
             ReadFunction(f, prop.writeHandler);
         }
     }
@@ -408,14 +397,13 @@ private:
     {
         state.name = ReadUInt16BE(f);
         state.numFunctions = ReadUInt16BE(f);
-        std::cout << "          State: " << stringTable.toUtf8(state.name)
-            << " (" << state.numFunctions << " functions)" << std::endl;
+
         state.functions.resize(state.numFunctions);
 
         for (uint16_t i = 0; i < state.numFunctions; ++i)
         {
             state.functions[i].functionName = ReadUInt16BE(f);
-            std::cout << "            Function: " << stringTable.toUtf8(state.functions[i].functionName) << std::endl;
+           
             ReadFunction(f, state.functions[i].function);
         }
     }
@@ -625,18 +613,14 @@ private:
 
         for (uint16_t i = 0; i < stringTable.count; ++i)
         {
-            if (i < stringTable.strings_data.size() && !stringTable.strings_data[i].empty())
+            if (i < stringTable.strings.size() && !stringTable.strings.empty())
             {
-                WriteUInt16BE(f, static_cast<uint16_t>(stringTable.strings_data[i].size()));
+                WriteUInt16BE(f, static_cast<uint16_t>(stringTable.strings[i].size()));
 
-                f.write(reinterpret_cast<const char*>(stringTable.strings_data[i].data()),
-                    stringTable.strings_data[i].size());
+                f.write(reinterpret_cast<const char*>(stringTable.strings[i].data()),
+                    stringTable.strings[i].size());
 
                 WriteUInt8(f, 0);
-            }
-            else
-            {
-                WriteWString(f, stringTable.strings[i]);
             }
         }
     }

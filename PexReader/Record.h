@@ -3,8 +3,9 @@
 #include <vector>
 #include <variant> 
 #include <fstream>
-#include <cstdint>
-#include <cstring>
+#include <iostream>
+#include <iomanip>
+#include <cstddef>
 
 using namespace std;
 
@@ -154,6 +155,54 @@ inline std::wstring ReadWString(std::ifstream& f)
     return result;
 }
 
+inline std::vector<byte> ReadBytes(std::ifstream& f) 
+{
+    uint16_t length = ReadUInt16BE(f);
+
+    if (length == 0) 
+    {
+        return {};
+    }
+
+    std::vector<char> buffer(length);
+    f.read(buffer.data(), length);
+
+    std::vector<byte> byteArray;
+    for (char c : buffer) {
+        byteArray.push_back(static_cast<byte>(static_cast<unsigned char>(c)));  
+    }
+
+    return  byteArray;
+}
+
+
+inline std::pair<std::wstring, std::vector<byte>> ReadWStringR(std::ifstream& f) {
+    uint16_t length = ReadUInt16BE(f);  
+
+    if (length == 0) {
+        return { L"", {} };  
+    }
+
+    std::vector<char> buffer(length); 
+    f.read(buffer.data(), length);   
+
+
+    std::wstring result;
+    result.reserve(length);
+    for (char c : buffer) {
+        result.push_back(static_cast<wchar_t>(static_cast<unsigned char>(c)));  
+    }
+
+
+    std::vector<byte> byteArray;
+    for (char c : buffer) {
+        byteArray.push_back(static_cast<byte>(static_cast<unsigned char>(c))); 
+    }
+
+
+    return { result, byteArray };
+}
+
 inline std::vector<byte> ReadBytes(std::ifstream& f, uint16_t length)
 {
     std::vector<byte> buffer(length);
@@ -185,4 +234,45 @@ inline std::vector<byte> ReadBytesUntilNull(std::ifstream& f, size_t maxLength =
     }
 
     return buffer;
+}
+
+
+using byte = std::byte;
+
+inline void PrintHexAndText(const std::vector<byte>& data) {
+
+    std::cout << "Hex: ";
+    for (byte b : data) 
+    {
+        unsigned char byteValue = static_cast<unsigned char>(b);
+        std::cout << std::hex << std::setw(2) << std::setfill('0')
+            << static_cast<int>(byteValue) << " ";
+    }
+    std::cout << std::dec << std::endl; 
+
+    std::cout << "ASCII: ";
+    for (byte b : data) 
+    {
+        unsigned char byteValue = static_cast<unsigned char>(b);
+        if (byteValue >= 32 && byteValue <= 126) {
+            std::cout << static_cast<char>(byteValue);
+        }
+        else {
+            std::cout << '.';
+        }
+    }
+    std::cout << std::endl;
+
+    std::cout << "UTF-8: ";
+    for (byte b : data) 
+    {
+        unsigned char byteValue = static_cast<unsigned char>(b);
+        if (byteValue < 32 && byteValue != 9 && byteValue != 10 && byteValue != 13) {
+            std::cout << '?';
+        }
+        else {
+            std::cout << static_cast<char>(byteValue);
+        }
+    }
+    std::cout << std::endl;
 }
