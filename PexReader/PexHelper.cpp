@@ -3,6 +3,7 @@
 #include "PexHeader.cpp"
 #include "PexSections.cpp"
 #include <iostream>
+#include <sstream>
 
 class PexData
 {
@@ -84,12 +85,29 @@ public:
         file.close();
     }
 
-    string GetPsc()
+    string GetPsc() 
     {
-        return "";
+        std::ostringstream Script;
+
+        if (objects.empty()) return "";
+
+        uint16_t classNameIndex = objects[0].nameIndex;
+
+        std::string className = stringTable.ToUtf8(classNameIndex);
+
+        Script << "Scriptname " << className << " ";
+
+        if (objects[0].data.parentClassName != 0xFFFF) 
+        {
+            std::string parentName = stringTable.ToUtf8(objects[0].data.parentClassName);
+            Script << "extends " << parentName << " ";
+        }
+        Script << "\n";
+
+        return Script.str();
     }
 
-private:
+    private:
     void ReadHeader(std::ifstream& f)
     {
         Header.magic = ReadUInt32BE(f);
