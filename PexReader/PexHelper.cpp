@@ -200,6 +200,10 @@ private:
         for (uint16_t i = 0; i < data.numVariables; ++i)
         {
             std::cout << "        Reading variable " << i << " at position " << f.tellg() << std::endl;
+            if (i == 10)
+            {
+                int i = 1;
+            }
             ReadVariable(f, data.variables[i]);
         }
 
@@ -231,10 +235,10 @@ private:
         var.userFlags = ReadUInt32BE(f);
         std::cout << "          Variable: " << stringTable.toUtf8(var.name)
             << " : " << stringTable.toUtf8(var.typeName) << std::endl;
-        ReadVariableData(f, var.data);
+        ReadVariableData(f, var.data, true);
     }
 
-    void ReadVariableData(std::ifstream& f, VariableData& data)
+    void ReadVariableData(std::ifstream& f, VariableData& data, bool integer_unsigned = false)
     {
         std::streampos pos = f.tellg();
         data.type = ReadUInt8(f);
@@ -245,12 +249,22 @@ private:
         switch (data.type)
         {
         case 0: // null
+            // NULL类型没有数据
+            break;
         case 1: // identifier
         case 2: // string
             data.data = ReadUInt16BE(f);
             break;
         case 3: // integer
-            data.data = ReadInt32BE(f);
+            if (integer_unsigned)
+            {
+                uint32_t uint_val = ReadUInt32BE(f);
+                data.data = static_cast<int32_t>(uint_val);
+            }
+            else
+            {
+                data.data = ReadInt32BE(f);
+            }
             break;
         case 4: // float
             data.data = ReadFloatBE(f);
@@ -606,22 +620,30 @@ private:
         WriteUInt16BE(f, var.name);
         WriteUInt16BE(f, var.typeName);
         WriteUInt32BE(f, var.userFlags);
-        WriteVariableData(f, var.data);
+        WriteVariableData(f, var.data, true); 
     }
 
-    void WriteVariableData(std::ofstream& f, const VariableData& data)
+    void WriteVariableData(std::ofstream& f, const VariableData& data, bool integer_unsigned = false)
     {
         WriteUInt8(f, data.type);
 
         switch (data.type)
         {
         case 0:
+            break;
         case 1:
         case 2:
             WriteUInt16BE(f, std::get<uint16_t>(data.data));
             break;
         case 3:
-            WriteInt32BE(f, std::get<int32_t>(data.data));
+            if (integer_unsigned)
+            {
+                WriteUInt32BE(f, static_cast<uint32_t>(std::get<int32_t>(data.data)));
+            }
+            else
+            {
+                WriteInt32BE(f, std::get<int32_t>(data.data));
+            }
             break;
         case 4:
             WriteFloatBE(f, std::get<float>(data.data));
