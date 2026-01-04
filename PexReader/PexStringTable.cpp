@@ -4,10 +4,10 @@
 
 class StringTable
 {
-public:
+	public:
 	uint16_t count;
 	std::vector<std::wstring> strings;
-
+	std::vector<std::vector<byte>> strings_data;
 	StringTable() : count(0) {}
 
 	StringTable(uint16_t _count) : count(_count)

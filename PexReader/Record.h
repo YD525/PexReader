@@ -154,3 +154,35 @@ inline std::wstring ReadWString(std::ifstream& f)
     return result;
 }
 
+inline std::vector<byte> ReadBytes(std::ifstream& f, uint16_t length)
+{
+    std::vector<byte> buffer(length);
+    f.read(reinterpret_cast<char*>(buffer.data()), length);
+    return buffer;
+}
+
+inline std::vector<byte> ReadBytesUntilNull(std::ifstream& f, size_t maxLength = 1024)
+{
+    std::vector<byte> buffer;
+    byte byteRead;
+
+    size_t bytesRead = 0; 
+
+    while (f.read(reinterpret_cast<char*>(&byteRead), 1))
+    {
+        if (bytesRead >= maxLength)
+        {
+            return {}; 
+        }
+
+        if (static_cast<unsigned char>(byteRead) == 0)
+        {
+            break;
+        }
+
+        buffer.push_back(byteRead);
+        bytesRead++;
+    }
+
+    return buffer;
+}

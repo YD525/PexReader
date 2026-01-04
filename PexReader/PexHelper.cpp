@@ -6,7 +6,7 @@
 
 class PexData
 {
-public:
+    public:
     RecordHeader Header;
     StringTable stringTable;
     DebugInfo debugInfo;
@@ -107,14 +107,72 @@ private:
         Header.machinename = ReadWString(f);
     }
 
+
+    std::string toUtf8String(const std::wstring& wstr)
+    {
+        #if __cplusplus >= 201103L
+        std::wstring_convert<std::codecvt_utf8<wchar_t>> converter;
+        try {
+            return converter.to_bytes(wstr);
+        }
+        catch (...) {
+            std::string result;
+            for (wchar_t wc : wstr) {
+                if (wc < 128) {
+                    result.push_back(static_cast<char>(wc));
+                }
+                else {
+                    result.push_back('?');
+                }
+            }
+            return result;
+        }
+        #else
+        std::string result;
+        for (wchar_t wc : wstr) {
+            if (wc < 128) {
+                result.push_back(static_cast<char>(wc));
+            }
+            else {
+                result.push_back('?');
+            }
+        }
+        return result;
+        #endif
+    }
+
     void ReadStringTable(std::ifstream& f)
     {
         stringTable.count = ReadUInt16BE(f);
         stringTable.strings.resize(stringTable.count);
+        stringTable.strings_data.resize(stringTable.count);
 
         for (uint16_t i = 0; i < stringTable.count; ++i)
         {
             stringTable.strings[i] = ReadWString(f);
+
+            std::streampos posBeforeBytes = f.tellg();
+
+            stringTable.strings_data[i] = ReadBytesUntilNull(f);
+
+            if (stringTable.strings_data[i].size() > 0)
+            {
+                std::cout << "HEX: ";
+
+                for (size_t j = 0; j < stringTable.strings_data[i].size(); ++j)
+                {
+                    unsigned char byte = static_cast<unsigned char>(stringTable.strings_data[i][j]);
+
+                    if (byte < 0x10)
+                        std::cout << "0";  
+
+                    std::cout << std::hex << static_cast<int>(byte) << " ";  
+                }
+
+                std::cout << std::endl;
+            }
+
+            f.seekg(posBeforeBytes, std::ios::beg);
         }
     }
 
@@ -200,10 +258,7 @@ private:
         for (uint16_t i = 0; i < data.numVariables; ++i)
         {
             std::cout << "        Reading variable " << i << " at position " << f.tellg() << std::endl;
-            if (i == 10)
-            {
-                int i = 1;
-            }
+
             ReadVariable(f, data.variables[i]);
         }
 
@@ -249,7 +304,7 @@ private:
         switch (data.type)
         {
         case 0: // null
-            // NULL类型没有数据
+            
             break;
         case 1: // identifier
         case 2: // string
