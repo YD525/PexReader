@@ -166,13 +166,13 @@ inline std::vector<byte> ReadBytesUntilNull(std::ifstream& f, size_t maxLength =
     std::vector<byte> buffer;
     byte byteRead;
 
-    size_t bytesRead = 0; 
+    size_t bytesRead = 0;
 
     while (f.read(reinterpret_cast<char*>(&byteRead), 1))
     {
         if (bytesRead >= maxLength)
         {
-            return {}; 
+            return {};
         }
 
         if (static_cast<unsigned char>(byteRead) == 0)

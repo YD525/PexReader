@@ -6,7 +6,7 @@
 
 class PexData
 {
-    public:
+public:
     RecordHeader Header;
     StringTable stringTable;
     DebugInfo debugInfo;
@@ -110,7 +110,7 @@ private:
 
     std::string toUtf8String(const std::wstring& wstr)
     {
-        #if __cplusplus >= 201103L
+#if __cplusplus >= 201103L
         std::wstring_convert<std::codecvt_utf8<wchar_t>> converter;
         try {
             return converter.to_bytes(wstr);
@@ -127,7 +127,7 @@ private:
             }
             return result;
         }
-        #else
+#else
         std::string result;
         for (wchar_t wc : wstr) {
             if (wc < 128) {
@@ -138,7 +138,7 @@ private:
             }
         }
         return result;
-        #endif
+#endif
     }
 
     void ReadStringTable(std::ifstream& f)
@@ -147,32 +147,67 @@ private:
         stringTable.strings.resize(stringTable.count);
         stringTable.strings_data.resize(stringTable.count);
 
+        const size_t MAX_LENGTH = 1024;
+
         for (uint16_t i = 0; i < stringTable.count; ++i)
         {
-            stringTable.strings[i] = ReadWString(f);
+            std::streampos posBeforeStringRead = f.tellg();
 
-            std::streampos posBeforeBytes = f.tellg();
+            std::vector<byte> buffer;
+            byte currentByte;
 
-            stringTable.strings_data[i] = ReadBytesUntilNull(f);
+            size_t bytesRead = 0;
 
-            if (stringTable.strings_data[i].size() > 0)
+            while (f.read(reinterpret_cast<char*>(&currentByte), 1))
             {
-                std::cout << "HEX: ";
-
-                for (size_t j = 0; j < stringTable.strings_data[i].size(); ++j)
+                if (bytesRead >= MAX_LENGTH)
                 {
-                    unsigned char byte = static_cast<unsigned char>(stringTable.strings_data[i][j]);
-
-                    if (byte < 0x10)
-                        std::cout << "0";  
-
-                    std::cout << std::hex << static_cast<int>(byte) << " ";  
+                    buffer.clear();
+                    std::cout << "Exceeded MAX_LENGTH, clearing buffer." << std::endl;
+                    break;
                 }
 
-                std::cout << std::endl;
+                if (std::to_integer<unsigned char>(currentByte) == 0)
+                {
+                    break;
+                }
+
+                buffer.push_back(currentByte);
+                ++bytesRead;
             }
 
-            f.seekg(posBeforeBytes, std::ios::beg);
+            std::string strFromData;
+            if (!buffer.empty())
+            {
+                size_t startIndex = 0;
+
+                if (std::to_integer<unsigned char>(buffer[0]) == 0x00)
+                {
+                    startIndex = 1;
+                }
+
+
+                for (size_t j = startIndex; j < buffer.size(); ++j)
+                {
+                    strFromData.push_back(static_cast<char>(std::to_integer<unsigned char>(buffer[j]))); 
+                }
+            }
+
+
+            if (strFromData.empty())
+            {
+                f.seekg(posBeforeStringRead, std::ios::beg);
+                std::cout << "No valid UTF-8 data found, reverting to the first stone (original string)." << std::endl;
+
+                stringTable.strings[i] = ReadWString(f);
+                stringTable.strings_data[i].clear();
+            }
+            else
+            {
+                std::cout << "Valid UTF-8 data found, using the second stone." << std::endl;
+                stringTable.strings_data[i] = buffer;
+                std::cout << "UTF-8 Data: " << strFromData << std::endl;
+            }
         }
     }
 
@@ -304,7 +339,7 @@ private:
         switch (data.type)
         {
         case 0: // null
-            
+
             break;
         case 1: // identifier
         case 2: // string
@@ -587,9 +622,22 @@ private:
     void WriteStringTable(std::ofstream& f)
     {
         WriteUInt16BE(f, stringTable.count);
-        for (const auto& str : stringTable.strings)
+
+        for (uint16_t i = 0; i < stringTable.count; ++i)
         {
-            WriteWString(f, str);
+            if (i < stringTable.strings_data.size() && !stringTable.strings_data[i].empty())
+            {
+                WriteUInt16BE(f, static_cast<uint16_t>(stringTable.strings_data[i].size()));
+
+                f.write(reinterpret_cast<const char*>(stringTable.strings_data[i].data()),
+                    stringTable.strings_data[i].size());
+
+                WriteUInt8(f, 0);
+            }
+            else
+            {
+                WriteWString(f, stringTable.strings[i]);
+            }
         }
     }
 
@@ -675,7 +723,7 @@ private:
         WriteUInt16BE(f, var.name);
         WriteUInt16BE(f, var.typeName);
         WriteUInt32BE(f, var.userFlags);
-        WriteVariableData(f, var.data, true); 
+        WriteVariableData(f, var.data, true);
     }
 
     void WriteVariableData(std::ofstream& f, const VariableData& data, bool integer_unsigned = false)
