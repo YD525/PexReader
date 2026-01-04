@@ -22,6 +22,11 @@ class PexData
 
 	}
 
+	string GetPsc()
+	{
+		return "";
+	}
+
 	void Save()
 	{
 
