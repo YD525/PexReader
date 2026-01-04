@@ -28,6 +28,7 @@ struct DebugInfo
     }
 };
 #pragma endregion
+
 #pragma region DebugFunction
 //Debug Function
 struct DebugFunction
@@ -51,6 +52,7 @@ struct DebugFunction
     }
 };
 #pragma endregion
+
 #pragma region User Flag
 //UserFlag
 #pragma pack(push, 1)
@@ -61,42 +63,14 @@ struct UserFlag
 };
 #pragma pack(pop)
 #pragma endregion
-#pragma region Object&Object Data
-struct ObjectData
-{
-    uint16_t parentClassName;
-    uint16_t docString;
-    uint32_t userFlags;
-    uint16_t autoStateName;
-    uint16_t numVariables;
-    std::vector<Variable> variables;
-    uint16_t numProperties;
-    std::vector<Property> properties;
-    uint16_t numStates;
-    std::vector<State> states;
-};
-//Object Object Data
-struct Object
-{
-    uint16_t nameIndex;
-    uint32_t size;
 
-    ObjectData data; 
-
-    Object(uint16_t _nameIndex, uint32_t _size)
-        : nameIndex(_nameIndex), size(_size)
-    {
-    }
-};
-#pragma endregion
-
-
-
-#pragma pack(push, 1)
+#pragma region VariableData
 struct VariableData
 {
     uint8_t type;  // Type: 0 = null, 1 = identifier, 2 = string, 3 = integer, 4 = float, 5 = bool
     std::variant<uint16_t, int32_t, float, uint8_t> data;  // Data of different types
+
+    VariableData() : type(0), data(uint16_t(0)) {}
 
     VariableData(uint8_t _type) : type(_type)
     {
@@ -116,19 +90,27 @@ struct VariableData
         {
             data = uint8_t(0);  //uint8_t 
         }
+        else
+        {
+            data = uint16_t(0);  
+        }
     }
 };
+#pragma endregion
+
+#pragma region Variable
 struct Variable
 {
     uint16_t name;
     uint16_t typeName;
     uint32_t userFlags;
     VariableData data;
+
+    Variable() : name(0), typeName(0), userFlags(0), data() {}
 };
-#pragma pack(pop)
+#pragma endregion
 
-#pragma pack(push, 1)
-
+#pragma region Opcode
 enum class Opcode : uint8_t
 {
     nop = 0x00,           // do nothing
@@ -168,19 +150,29 @@ enum class Opcode : uint8_t
     array_findelement = 0x22, // find an element in an array. The 4th arg is the startIndex, default = 0 (SSII)
     array_rfindelement = 0x23 // find an element in an array, starting from the end. The 4th arg is the startIndex, default = -1 (SSII)
 };
+#pragma endregion
 
+#pragma region VariableType
 struct VariableType
 {
     uint16_t name;//Index(base 0) into string table
     uint16_t type;//Index(base 0) into string table
+    
+    VariableType() : name(0), type(0) {}
 };
+#pragma endregion
 
+#pragma region Instruction
 struct Instruction
 {
     Opcode op;
-    VariableData arguments;//Length is dependent on opcode, also varargs
-};
+    vector<VariableData> arguments; 
 
+    Instruction() : op(Opcode::nop) {}
+};
+#pragma endregion
+
+#pragma region Function
 struct Function
 {
     uint16_t returnType;
@@ -193,45 +185,85 @@ struct Function
     vector<VariableType> locals;
     uint16_t numInstructions;
     vector<Instruction> instructions;
+
+    Function() : returnType(0), docString(0), userFlags(0), flags(0),
+                 numParams(0), numLocals(0), numInstructions(0) {}
 };
+#pragma endregion
 
-
+#pragma region Property
 struct Property
 {
     uint16_t name; //Index(base 0) into string table
     uint16_t type;  //Index(base 0) into string table
     uint16_t docstring; //Index(base 0) into string table
     uint32_t userFlags;     
-    uint8_t flags; //bitfield: 1(bit 1) = read, 2(bit 2) = write, 4(bit 3) = autovar. For example, Property in a source script contains only get() or is defined AutoReadOnly then the flags is 0x1, contains get() and set() then the flags is 0x3.
+    uint8_t flags; //bitfield: 1(bit 1) = read, 2(bit 2) = write, 4(bit 3) = autovar
     uint16_t autoVarName;//Index(base 0) into string table, present if (flags & 4) != 0
     Function readHandler;//present if (flags & 5) == 1
     Function writeHandler;//present if (flags & 6) == 2
-};
 
+    Property() : name(0), type(0), docstring(0), userFlags(0), flags(0), autoVarName(0) {}
+};
+#pragma endregion
+
+#pragma region NamedFunction
 struct NamedFunction
 {
     uint16_t functionName; //Index(base 0) into string table
     Function function;
+
+    NamedFunction() : functionName(0) {}
 };
+#pragma endregion
 
-#pragma pack(pop)
-
+#pragma region State
 struct State
 {
     uint16_t name;      
     uint16_t numFunctions;
     vector<NamedFunction> functions;
-};
 
-#pragma pack(push, 1)
-struct Parameter
+    State() : name(0), numFunctions(0) {}
+};
+#pragma endregion
+
+#pragma region ObjectData
+struct ObjectData
 {
-    uint16_t nameIndex;      
-    uint16_t typeNameIndex;  
+    uint16_t parentClassName;
+    uint16_t docString;
+    uint32_t userFlags;
+    uint16_t autoStateName;
+    uint16_t numVariables;
+    std::vector<Variable> variables;
+    uint16_t numProperties;
+    std::vector<Property> properties;
+    uint16_t numStates;
+    std::vector<State> states;
+
+    ObjectData() : parentClassName(0), docString(0), userFlags(0), autoStateName(0),
+                   numVariables(0), numProperties(0), numStates(0) {}
 };
-#pragma pack(pop)
+#pragma endregion
 
+#pragma region Object
+struct Object
+{
+    uint16_t nameIndex;
+    uint32_t size;
+    ObjectData data; 
 
+    Object() : nameIndex(0), size(0) {}
+
+    Object(uint16_t _nameIndex, uint32_t _size)
+        : nameIndex(_nameIndex), size(_size)
+    {
+    }
+};
+#pragma endregion
+
+#pragma region RecordSections
 struct RecordSections
 {
     StringTable stringTable;
@@ -245,3 +277,4 @@ struct RecordSections
 
     RecordSections() : userFlagCount(0), objectCount(0) {}
 };
+#pragma endregion
