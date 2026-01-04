@@ -150,7 +150,8 @@ private:
         for (uint16_t i = 0; i < stringTable.count; ++i)
         {
             stringTable.strings[i] = ReadBytes(f);
-            PrintHexAndText(stringTable.strings[i]);
+            std::cout << "Utf8Str: " << stringTable.ToUtf8(i) << std::endl;
+            //PrintHexAndText(stringTable.strings[i]);
         }
     }
 
