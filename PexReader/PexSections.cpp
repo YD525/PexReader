@@ -1,8 +1,5 @@
 #pragma once
-#include <string>
-#include <vector>;
-using namespace std;
-
+#include "Record.h"
 
 #pragma pack(push, 1)
 struct StringTable

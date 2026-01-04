@@ -29,5 +29,8 @@
     <ClInclude Include="PexHeader.cpp">
       <Filter>Source Files</Filter>
     </ClInclude>
+    <ClInclude Include="Record.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>
