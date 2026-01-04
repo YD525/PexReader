@@ -3,14 +3,11 @@
 
 // Forward Declarations
 struct DebugFunction;
+struct ObjectData;
 struct Variable;
+struct VariableData;
 struct Property;
 struct State;
-struct Instruction;
-struct Function;
-struct UserFlag;
-struct Parameter;
-struct LocalVariable;
 
 
 #pragma region String Table 
@@ -79,19 +76,6 @@ struct UserFlag
 #pragma pack(pop)
 #pragma endregion
 #pragma region Object&Object Data
-//Object Object Data
-struct Object
-{
-    uint16_t nameIndex;
-    uint32_t size;
-
-    ObjectData data; 
-
-    Object(uint16_t _nameIndex, uint32_t _size)
-        : nameIndex(_nameIndex), size(_size)
-    {
-    }
-};
 struct ObjectData
 {
     uint16_t parentClassName;
@@ -105,8 +89,45 @@ struct ObjectData
     uint16_t numStates;
     std::vector<State> states;
 };
+//Object Object Data
+struct Object
+{
+    uint16_t nameIndex;
+    uint32_t size;
 
+    ObjectData data; 
+
+    Object(uint16_t _nameIndex, uint32_t _size)
+        : nameIndex(_nameIndex), size(_size)
+    {
+    }
+};
 #pragma pack(push, 1)
+struct VariableData
+{
+    uint8_t type;  // Type: 0 = null, 1 = identifier, 2 = string, 3 = integer, 4 = float, 5 = bool
+    std::variant<uint16_t, int32_t, float, uint8_t> data;  // Data of different types
+
+    VariableData(uint8_t _type) : type(_type)
+    {
+        if (type == 0 || type == 1 || type == 2)
+        {
+            data = uint16_t(0);  //uint16_t for identifier and string
+        }
+        else if (type == 3)
+        {
+            data = int32_t(0);  //int32_t 
+        }
+        else if (type == 4)
+        {
+            data = float(0.0f);  //float 
+        }
+        else if (type == 5)
+        {
+            data = uint8_t(0);  //uint8_t 
+        }
+    }
+};
 struct Variable
 {
     uint16_t name;
@@ -114,59 +135,41 @@ struct Variable
     uint32_t userFlags;
     VariableData data;
 };
-struct VariableData
-{
-    uint8_t type;  // Type: 0 = null, 1 = identifier, 2 = string, 3 = integer, 4 = float, 5 = bool
-    std::variant<uint16_t, int32_t, float, uint8_t, std::string> data;  // Data of different types
-
-    VariableData(uint8_t _type) : type(_type)
-    {
-        if (type == 0 || type == 1 || type == 2) {
-            data = uint16_t(0);  //uint16_t
-        }
-        else if (type == 3) {
-            data = int32_t(0);  //int32_t
-        }
-        else if (type == 4) {
-            data = float(0.0f);  //float
-        }
-        else if (type == 5) {
-            data = uint8_t(0);  //bool (uint8_t)
-        }
-    }
-
-    VariableData(uint8_t _type, const std::string& str) : type(_type)
-    {
-        if (type == 2) {
-            data = str;
-        }
-        else {
-            *this = VariableData(_type);
-        }
-    }
-};
 #pragma pack(pop)
-
 #pragma endregion
 
 
 
 #pragma pack(push, 1)
+struct Function
+{
+};
+
 struct Property
 {
-    uint16_t nameIndex;      
-    uint8_t type;            
-    uint32_t docStringIndex; 
+    uint16_t name; //Index(base 0) into string table
+    uint16_t type;  //Index(base 0) into string table
+    uint16_t docstring; //Index(base 0) into string table
     uint32_t userFlags;     
-    uint32_t flags;          
+    uint8_t flags; //bitfield: 1(bit 1) = read, 2(bit 2) = write, 4(bit 3) = autovar. For example, Property in a source script contains only get() or is defined AutoReadOnly then the flags is 0x1, contains get() and set() then the flags is 0x3.
+    uint16_t autoVarName;//Index(base 0) into string table, present if (flags & 4) != 0
+    Function readHandler;//present if (flags & 5) == 1
+    Function writeHandler;//present if (flags & 6) == 2
 };
+
+struct NamedFunction
+{
+    uint16_t functionName; //Index(base 0) into string table
+    Function function;
+};
+
 #pragma pack(pop)
 
 struct State
 {
-    uint16_t nameIndex;      
-    uint16_t functionCount; 
-    vector<uint16_t> functionIndices; 
+    uint16_t name;      
+    uint16_t numFunctions;
+    vector<NamedFunction> functions;
 };
 
 #pragma pack(push, 1)
