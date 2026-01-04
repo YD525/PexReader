@@ -131,6 +131,7 @@
     <ClCompile Include="PexHelper.cpp" />
     <ClCompile Include="PexReader.cpp" />
     <ClCompile Include="PexSections.cpp" />
+    <ClCompile Include="PexStringTable.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="PexHeader.cpp" />

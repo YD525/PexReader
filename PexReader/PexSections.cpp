@@ -191,22 +191,23 @@ struct VariableType
 struct Instruction
 {
     Opcode op;
-    VariableData arguments;//	Length is dependent on opcode, also varargs
+    VariableData arguments;//Length is dependent on opcode, also varargs
 };
 
 struct Function
 {
     uint16_t returnType;
-    uint16_t docstring;
+    uint16_t docString;
     uint32_t userFlags;
     uint8_t flags;
     uint16_t numParams;
-    VariableType params;
+    vector<VariableType> params;
     uint16_t numLocals;
-    VariableType locals;
+    vector<VariableType> locals;
     uint16_t numInstructions;
-    Instruction instructions;
+    vector<Instruction> instructions;
 };
+
 
 struct Property
 {
@@ -243,33 +244,6 @@ struct Parameter
 };
 #pragma pack(pop)
 
-#pragma pack(push, 1)
-struct LocalVariable
-{
-    uint16_t nameIndex;      
-    uint16_t typeNameIndex;  
-};
-#pragma pack(pop)
-
-struct Instruction
-{
-    uint8_t opcode;         
-    vector<uint8_t> args;    
-};
-
-struct Function
-{
-    uint16_t returnType;    
-    uint16_t docString;     
-    uint32_t userFlags;          
-    uint8_t flags;               
-    uint16_t numParams;
-    vector<VariableType> params;
-    uint16_t numLocals;
-    vector<LocalVariable> locals;
-    uint16_t numInstructions;
-    vector<Instruction> instructions;
-};
 
 struct RecordSections
 {
