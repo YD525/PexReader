@@ -25,14 +25,33 @@ public:
 
         try
         {
+            std::cout << "Reading Header..." << std::endl;
             ReadHeader(file);
+            std::cout << "Position after header: " << file.tellg() << std::endl;
+
+            std::cout << "Reading StringTable..." << std::endl;
             ReadStringTable(file);
+            std::cout << "Position after string table: " << file.tellg() << std::endl;
+            std::cout << "String count: " << stringTable.count << std::endl;
+
+            std::cout << "Reading DebugInfo..." << std::endl;
             ReadDebugInfo(file);
+            std::cout << "Position after debug info: " << file.tellg() << std::endl;
+
+            std::cout << "Reading UserFlags..." << std::endl;
             ReadUserFlags(file);
+            std::cout << "Position after user flags: " << file.tellg() << std::endl;
+            std::cout << "User flag count: " << userFlagCount << std::endl;
+
+            std::cout << "Reading Objects..." << std::endl;
             ReadObjects(file);
+            std::cout << "Position after objects: " << file.tellg() << std::endl;
+
+            std::cout << "Load complete!" << std::endl;
         }
         catch (const std::exception& e)
         {
+            std::cerr << "Error at file position: " << file.tellg() << std::endl;
             file.close();
             throw std::runtime_error(string("Loading failed: ") + e.what());
         }
@@ -95,37 +114,20 @@ private:
 
         for (uint16_t i = 0; i < stringTable.count; ++i)
         {
-            uint16_t length = ReadUInt16BE(f);
-            std::wcout << "String length: " << length << std::endl;
-            if (length == 0) {
-                break; 
-            }
-
-            std::wstring wstr;
-            wstr.reserve(length);
-
-            for (uint16_t j = 0; j < length; ++j)
-            {
-                wchar_t ch;
-                f.read(reinterpret_cast<char*>(&ch), sizeof(wchar_t));
-                if (f.eof()) {
-                    std::cerr << "Unexpected end of file while reading string" << std::endl;
-                    return;
-                }
-                wstr.push_back(ch);
-            }
-            stringTable.strings[i] = wstr;
+            stringTable.strings[i] = ReadWString(f);
         }
     }
 
     void ReadDebugInfo(std::ifstream& f)
     {
         debugInfo.hasDebugInfo = ReadUInt8(f);
+        std::cout << "  Has debug info: " << static_cast<int>(debugInfo.hasDebugInfo) << std::endl;
 
         if (debugInfo.hasDebugInfo)
         {
             debugInfo.modificationTime = ReadUInt64BE(f);
             debugInfo.functionCount = ReadUInt16BE(f);
+            std::cout << "  Debug function count: " << debugInfo.functionCount << std::endl;
             debugInfo.functions.resize(debugInfo.functionCount);
 
             for (uint16_t i = 0; i < debugInfo.functionCount; ++i)
@@ -165,6 +167,7 @@ private:
     void ReadObjects(std::ifstream& f)
     {
         objectCount = ReadUInt16BE(f);
+        std::cout << "  Object count: " << objectCount << std::endl;
         objects.reserve(objectCount);
 
         for (uint16_t i = 0; i < objectCount; ++i)
@@ -172,8 +175,14 @@ private:
             uint16_t nameIndex = ReadUInt16BE(f);
             uint32_t size = ReadUInt32BE(f);
 
+            std::cout << "  Object " << i << ": " << stringTable.toUtf8(nameIndex)
+                << " (size: " << size << ")" << std::endl;
+            std::cout << "    Position before data: " << f.tellg() << std::endl;
+
             objects.emplace_back(nameIndex, size);
             ReadObjectData(f, objects.back().data);
+
+            std::cout << "    Position after data: " << f.tellg() << std::endl;
         }
     }
 
@@ -186,25 +195,31 @@ private:
 
         // Variables
         data.numVariables = ReadUInt16BE(f);
+        std::cout << "      Variables: " << data.numVariables << std::endl;
         data.variables.resize(data.numVariables);
         for (uint16_t i = 0; i < data.numVariables; ++i)
         {
+            std::cout << "        Reading variable " << i << " at position " << f.tellg() << std::endl;
             ReadVariable(f, data.variables[i]);
         }
 
         // Properties
         data.numProperties = ReadUInt16BE(f);
+        std::cout << "      Properties: " << data.numProperties << std::endl;
         data.properties.resize(data.numProperties);
         for (uint16_t i = 0; i < data.numProperties; ++i)
         {
+            std::cout << "        Reading property " << i << " at position " << f.tellg() << std::endl;
             ReadProperty(f, data.properties[i]);
         }
 
         // States
         data.numStates = ReadUInt16BE(f);
+        std::cout << "      States: " << data.numStates << std::endl;
         data.states.resize(data.numStates);
         for (uint16_t i = 0; i < data.numStates; ++i)
         {
+            std::cout << "        Reading state " << i << " at position " << f.tellg() << std::endl;
             ReadState(f, data.states[i]);
         }
     }
@@ -214,12 +229,18 @@ private:
         var.name = ReadUInt16BE(f);
         var.typeName = ReadUInt16BE(f);
         var.userFlags = ReadUInt32BE(f);
+        std::cout << "          Variable: " << stringTable.toUtf8(var.name)
+            << " : " << stringTable.toUtf8(var.typeName) << std::endl;
         ReadVariableData(f, var.data);
     }
 
     void ReadVariableData(std::ifstream& f, VariableData& data)
     {
+        std::streampos pos = f.tellg();
         data.type = ReadUInt8(f);
+
+        std::cout << "            VariableData type: " << static_cast<int>(data.type)
+            << " at position " << pos << std::endl;
 
         switch (data.type)
         {
@@ -238,7 +259,12 @@ private:
             data.data = ReadUInt8(f);
             break;
         default:
-            throw std::runtime_error("Unknown variable data type");
+        {
+            std::string error = "Unknown variable data type: " +
+                std::to_string(static_cast<int>(data.type)) +
+                " at file position: " + std::to_string(pos);
+            throw std::runtime_error(error);
+        }
         }
     }
 
@@ -250,6 +276,9 @@ private:
         prop.userFlags = ReadUInt32BE(f);
         prop.flags = ReadUInt8(f);
 
+        std::cout << "          Property: " << stringTable.toUtf8(prop.name)
+            << " flags: " << static_cast<int>(prop.flags) << std::endl;
+
         // autoVarName (if flags & 4)
         if (prop.flags & 4)
         {
@@ -259,12 +288,14 @@ private:
         // readHandler (if flags & 5 == 1)
         if ((prop.flags & 5) == 1)
         {
+            std::cout << "            Reading readHandler..." << std::endl;
             ReadFunction(f, prop.readHandler);
         }
 
         // writeHandler (if flags & 6 == 2)
         if ((prop.flags & 6) == 2)
         {
+            std::cout << "            Reading writeHandler..." << std::endl;
             ReadFunction(f, prop.writeHandler);
         }
     }
@@ -273,11 +304,14 @@ private:
     {
         state.name = ReadUInt16BE(f);
         state.numFunctions = ReadUInt16BE(f);
+        std::cout << "          State: " << stringTable.toUtf8(state.name)
+            << " (" << state.numFunctions << " functions)" << std::endl;
         state.functions.resize(state.numFunctions);
 
         for (uint16_t i = 0; i < state.numFunctions; ++i)
         {
             state.functions[i].functionName = ReadUInt16BE(f);
+            std::cout << "            Function: " << stringTable.toUtf8(state.functions[i].functionName) << std::endl;
             ReadFunction(f, state.functions[i].function);
         }
     }
@@ -324,28 +358,25 @@ private:
         {
         case Opcode::nop:
             break;
+
         case Opcode::callmethod:
         {
-            VariableData result;
+            VariableData result, self, methodName, argCountData;
             ReadVariableData(f, result);
-            instr.arguments.push_back(result);
-
-            VariableData self;
             ReadVariableData(f, self);
-            instr.arguments.push_back(self);
-
-            VariableData methodName;
             ReadVariableData(f, methodName);
-            instr.arguments.push_back(methodName);
-
-            VariableData argCountData;
             ReadVariableData(f, argCountData);
+
+            instr.arguments.push_back(result);
+            instr.arguments.push_back(self);
+            instr.arguments.push_back(methodName);
+            instr.arguments.push_back(argCountData);
+
             uint16_t argCount = 0;
-            if (argCountData.type == 3) // integer
+            if (argCountData.type == 3)
             {
                 argCount = static_cast<uint16_t>(std::get<int32_t>(argCountData.data));
             }
-            instr.arguments.push_back(argCountData);
 
             for (uint16_t i = 0; i < argCount; ++i)
             {
@@ -358,22 +389,20 @@ private:
 
         case Opcode::callparent:
         {
-            VariableData result;
+            VariableData result, methodName, argCountData;
             ReadVariableData(f, result);
-            instr.arguments.push_back(result);
-
-            VariableData methodName;
             ReadVariableData(f, methodName);
-            instr.arguments.push_back(methodName);
-
-            VariableData argCountData;
             ReadVariableData(f, argCountData);
+
+            instr.arguments.push_back(result);
+            instr.arguments.push_back(methodName);
+            instr.arguments.push_back(argCountData);
+
             uint16_t argCount = 0;
             if (argCountData.type == 3)
             {
                 argCount = static_cast<uint16_t>(std::get<int32_t>(argCountData.data));
             }
-            instr.arguments.push_back(argCountData);
 
             for (uint16_t i = 0; i < argCount; ++i)
             {
@@ -386,26 +415,22 @@ private:
 
         case Opcode::callstatic:
         {
-            VariableData result;
+            VariableData result, className, methodName, argCountData;
             ReadVariableData(f, result);
-            instr.arguments.push_back(result);
-
-            VariableData className;
             ReadVariableData(f, className);
-            instr.arguments.push_back(className);
-
-            VariableData methodName;
             ReadVariableData(f, methodName);
-            instr.arguments.push_back(methodName);
-
-            VariableData argCountData;
             ReadVariableData(f, argCountData);
+
+            instr.arguments.push_back(result);
+            instr.arguments.push_back(className);
+            instr.arguments.push_back(methodName);
+            instr.arguments.push_back(argCountData);
+
             uint16_t argCount = 0;
             if (argCountData.type == 3)
             {
                 argCount = static_cast<uint16_t>(std::get<int32_t>(argCountData.data));
             }
-            instr.arguments.push_back(argCountData);
 
             for (uint16_t i = 0; i < argCount; ++i)
             {
@@ -455,7 +480,7 @@ private:
         case Opcode::propset:
         case Opcode::array_getelement:
         case Opcode::array_setelement:
-            return 3; 
+            return 3;
         case Opcode::not_:
         case Opcode::ineg:
         case Opcode::fneg:
@@ -465,18 +490,19 @@ private:
         case Opcode::jmpf:
         case Opcode::array_create:
         case Opcode::array_length:
-            return 2; 
+            return 2;
         case Opcode::jmp:
         case Opcode::return_:
-            return 1; 
+            return 1;
         case Opcode::array_findelement:
         case Opcode::array_rfindelement:
-            return 4; 
+            return 4;
         default:
             return 0;
         }
     }
 
+    // Write functions remain the same...
     void WriteHeader(std::ofstream& f)
     {
         WriteUInt32BE(f, Header.magic);
@@ -492,15 +518,9 @@ private:
     void WriteStringTable(std::ofstream& f)
     {
         WriteUInt16BE(f, stringTable.count);
-
-        for (const auto& wstr : stringTable.strings)
+        for (const auto& str : stringTable.strings)
         {
-            WriteUInt16BE(f, static_cast<uint16_t>(wstr.length()));
-
-            for (wchar_t ch : wstr)
-            {
-                f.write(reinterpret_cast<const char*>(&ch), sizeof(wchar_t));
-            }
+            WriteWString(f, str);
         }
     }
 
@@ -562,21 +582,18 @@ private:
         WriteUInt32BE(f, data.userFlags);
         WriteUInt16BE(f, data.autoStateName);
 
-        // Variables
         WriteUInt16BE(f, data.numVariables);
         for (const auto& var : data.variables)
         {
             WriteVariable(f, var);
         }
 
-        // Properties
         WriteUInt16BE(f, data.numProperties);
         for (const auto& prop : data.properties)
         {
             WriteProperty(f, prop);
         }
 
-        // States
         WriteUInt16BE(f, data.numStates);
         for (const auto& state : data.states)
         {
@@ -598,18 +615,18 @@ private:
 
         switch (data.type)
         {
-        case 0: // null
-        case 1: // identifier
-        case 2: // string
+        case 0:
+        case 1:
+        case 2:
             WriteUInt16BE(f, std::get<uint16_t>(data.data));
             break;
-        case 3: // integer
+        case 3:
             WriteInt32BE(f, std::get<int32_t>(data.data));
             break;
-        case 4: // float
+        case 4:
             WriteFloatBE(f, std::get<float>(data.data));
             break;
-        case 5: // bool
+        case 5:
             WriteUInt8(f, std::get<uint8_t>(data.data));
             break;
         }
@@ -658,7 +675,6 @@ private:
         WriteUInt32BE(f, func.userFlags);
         WriteUInt8(f, func.flags);
 
-        // Parameters
         WriteUInt16BE(f, func.numParams);
         for (const auto& param : func.params)
         {
@@ -666,7 +682,6 @@ private:
             WriteUInt16BE(f, param.type);
         }
 
-        // Locals
         WriteUInt16BE(f, func.numLocals);
         for (const auto& local : func.locals)
         {
@@ -674,7 +689,6 @@ private:
             WriteUInt16BE(f, local.type);
         }
 
-        // Instructions
         WriteUInt16BE(f, func.numInstructions);
         for (const auto& instr : func.instructions)
         {

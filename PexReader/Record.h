@@ -4,14 +4,14 @@
 #include <variant> 
 #include <fstream>
 #include <cstdint>
+#include <cstring>
 
 using namespace std;
 
-
-inline uint16_t ReadUInt16BE(std::ifstream& f)
+inline uint16_t ReadUInt16BE(std::ifstream& stream)
 {
     uint8_t bytes[2];
-    f.read(reinterpret_cast<char*>(bytes), 2);
+    stream.read(reinterpret_cast<char*>(bytes), 2);
     return (static_cast<uint16_t>(bytes[0]) << 8) | bytes[1];
 }
 
@@ -59,18 +59,15 @@ inline float ReadFloatBE(std::ifstream& f)
     return result;
 }
 
-inline wstring ReadWString(std::ifstream& f)
+inline string ReadString(std::ifstream& f)
 {
     uint16_t length = ReadUInt16BE(f);
-    wstring result;
-    result.reserve(length);
-    for (uint16_t i = 0; i < length; ++i)
-    {
-        wchar_t ch;
-        f.read(reinterpret_cast<char*>(&ch), sizeof(wchar_t));
-        result.push_back(ch);
-    }
-    return result;
+    if (length == 0) return "";
+
+    vector<char> buffer(length);
+    f.read(buffer.data(), length);
+
+    return string(buffer.begin(), buffer.end());
 }
 
 inline void WriteUInt16BE(std::ofstream& f, uint16_t value)
@@ -126,8 +123,34 @@ inline void WriteWString(std::ofstream& f, const wstring& str)
 {
     uint16_t length = static_cast<uint16_t>(str.length());
     WriteUInt16BE(f, length);
-    for (wchar_t ch : str)
+
+    for (wchar_t wc : str)
     {
-        f.write(reinterpret_cast<const char*>(&ch), sizeof(wchar_t));
+        char c = static_cast<char>(wc);
+        f.write(&c, 1);
     }
 }
+
+//PEX's "WString" is not UTF-16, but rather ASCII/UTF-8 (1 byte per character).
+inline std::wstring ReadWString(std::ifstream& f)
+{
+    uint16_t length = ReadUInt16BE(f);
+
+    if (length == 0)
+    {
+        return L"";
+    }
+
+    std::vector<char> buffer(length);
+    f.read(buffer.data(), length);
+
+    std::wstring result;
+    result.reserve(length);
+    for (char c : buffer)
+    {
+        result.push_back(static_cast<wchar_t>(static_cast<unsigned char>(c)));
+    }
+
+    return result;
+}
+
