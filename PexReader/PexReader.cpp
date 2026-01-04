@@ -2,7 +2,6 @@
 //
 
 #include <iostream>
-#include "PexHeader.cpp"
 #include "PexHelper.cpp"
 
 void ProcessHeader(std::ifstream& f, PexData& doc)

@@ -1,5 +1,6 @@
 #pragma once
 #include "Record.h"
+#include "PexStringTable.cpp"
 
 // Forward Declarations
 struct DebugFunction;
@@ -10,21 +11,6 @@ struct Property;
 struct State;
 
 
-#pragma region String Table 
-//String Table 
-struct StringTable
-{
-    uint16_t count;
-    vector<wstring> strings;
-
-    StringTable() : count(0) {}
-
-    StringTable(uint16_t _count) : count(_count)
-    {
-        strings.resize(count);
-    }
-};
-#pragma endregion
 #pragma region DebugInfo 
 //Debug Info 
 struct DebugInfo
