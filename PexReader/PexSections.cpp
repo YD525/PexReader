@@ -55,13 +55,13 @@ struct DebugFunction
 
 #pragma region User Flag
 //UserFlag
-#pragma pack(push, 1)
+
 struct UserFlag
 {
     uint16_t flagNameIndex;
     uint8_t flagIndex;
 };
-#pragma pack(pop)
+
 #pragma endregion
 
 #pragma region VariableData

@@ -95,7 +95,26 @@ private:
 
         for (uint16_t i = 0; i < stringTable.count; ++i)
         {
-            stringTable.strings[i] = ReadWString(f);
+            uint16_t length = ReadUInt16BE(f);
+            std::wcout << "String length: " << length << std::endl;
+            if (length == 0) {
+                break; 
+            }
+
+            std::wstring wstr;
+            wstr.reserve(length);
+
+            for (uint16_t j = 0; j < length; ++j)
+            {
+                wchar_t ch;
+                f.read(reinterpret_cast<char*>(&ch), sizeof(wchar_t));
+                if (f.eof()) {
+                    std::cerr << "Unexpected end of file while reading string" << std::endl;
+                    return;
+                }
+                wstr.push_back(ch);
+            }
+            stringTable.strings[i] = wstr;
         }
     }
 
@@ -473,9 +492,15 @@ private:
     void WriteStringTable(std::ofstream& f)
     {
         WriteUInt16BE(f, stringTable.count);
-        for (const auto& str : stringTable.strings)
+
+        for (const auto& wstr : stringTable.strings)
         {
-            WriteWString(f, str);
+            WriteUInt16BE(f, static_cast<uint16_t>(wstr.length()));
+
+            for (wchar_t ch : wstr)
+            {
+                f.write(reinterpret_cast<const char*>(&ch), sizeof(wchar_t));
+            }
         }
     }
 

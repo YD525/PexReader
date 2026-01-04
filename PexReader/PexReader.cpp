@@ -4,15 +4,11 @@
 #include <iostream>
 #include "PexHelper.cpp"
 
-void ProcessHeader(std::ifstream& f, PexData& doc)
-{
-
-}
-
 int main()
 {
-    std::cout << "Hello World!\n";
-
+    
+    PexData PexReader;
+    PexReader.Load("C:\\Users\\52508\\Desktop\\TestPex\\din_Config.pex");
 
 
 }
