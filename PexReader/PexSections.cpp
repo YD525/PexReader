@@ -141,8 +141,71 @@ struct Variable
 
 
 #pragma pack(push, 1)
+
+enum class Opcode : uint8_t
+{
+    nop = 0x00,           // do nothing
+    iadd = 0x01,          // add two integers
+    fadd = 0x02,          // add two floats
+    isub = 0x03,          // subtract two integers
+    fsub = 0x04,          // subtract two floats
+    imul = 0x05,          // multiply two integers
+    fmul = 0x06,          // multiply two floats
+    idiv = 0x07,          // divide two integers
+    fdiv = 0x08,          // divide two floats
+    imod = 0x09,          // remainder of two integers
+    not_ = 0x0A,          // flip a bool, type conversion may occur
+    ineg = 0x0B,          // negate an integer
+    fneg = 0x0C,          // negate a float
+    assign = 0x0D,        // store a variable
+    cast = 0x0E,          // type conversion
+    cmp_eq = 0x0F,        // set a bool to true if a == b
+    cmp_lt = 0x10,        // set a bool to true if a < b
+    cmp_le = 0x11,        // set a bool to true if a <= b
+    cmp_gt = 0x12,        // set a bool to true if a > b
+    cmp_ge = 0x13,        // set a bool to true if a >= b
+    jmp = 0x14,           // relative unconditional branch
+    jmpt = 0x15,          // relative conditional branch if a bool is true
+    jmpf = 0x16,          // relative conditional branch if a bool is false
+    callmethod = 0x17,    // call a method (NSS*)
+    callparent = 0x18,    // call a parent method (NS*)
+    callstatic = 0x19,    // call a static method (NNS*)
+    return_ = 0x1A,       // return (A)
+    strcat = 0x1B,        // concatenate two strings (SQQ)
+    propget = 0x1C,       // retrieve an instance property (NSS)
+    propset = 0x1D,       // set an instance property (NSA)
+    array_create = 0x1E,  // create an array of the specified size (Su)
+    array_length = 0x1F,  // get an array's length (SS)
+    array_getelement = 0x20,  // get an element from an array (SSI)
+    array_setelement = 0x21,  // set an element in an array to value (SIA)
+    array_findelement = 0x22, // find an element in an array. The 4th arg is the startIndex, default = 0 (SSII)
+    array_rfindelement = 0x23 // find an element in an array, starting from the end. The 4th arg is the startIndex, default = -1 (SSII)
+};
+
+struct VariableType
+{
+    uint16_t name;//Index(base 0) into string table
+    uint16_t type;//Index(base 0) into string table
+};
+
+struct Instruction
+{
+    Opcode op;
+    VariableData arguments;//	Length is dependent on opcode, also varargs
+};
+
 struct Function
 {
+    uint16_t returnType;
+    uint16_t docstring;
+    uint32_t userFlags;
+    uint8_t flags;
+    uint16_t numParams;
+    VariableType params;
+    uint16_t numLocals;
+    VariableType locals;
+    uint16_t numInstructions;
+    Instruction instructions;
 };
 
 struct Property
@@ -196,22 +259,17 @@ struct Instruction
 
 struct Function
 {
-    uint16_t returnTypeIndex;    
-    uint16_t docStringIndex;     
+    uint16_t returnType;    
+    uint16_t docString;     
     uint32_t userFlags;          
     uint8_t flags;               
-
-    uint16_t paramCount;        
-    vector<Parameter> params;
-
-    uint16_t localCount;         
+    uint16_t numParams;
+    vector<VariableType> params;
+    uint16_t numLocals;
     vector<LocalVariable> locals;
-
-    uint16_t instructionCount;  
+    uint16_t numInstructions;
     vector<Instruction> instructions;
 };
-
-
 
 struct RecordSections
 {
