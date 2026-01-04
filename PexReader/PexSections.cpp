@@ -88,6 +88,10 @@ struct Object
     {
     }
 };
+#pragma endregion
+
+
+
 #pragma pack(push, 1)
 struct VariableData
 {
@@ -122,9 +126,6 @@ struct Variable
     VariableData data;
 };
 #pragma pack(pop)
-#pragma endregion
-
-
 
 #pragma pack(push, 1)
 
