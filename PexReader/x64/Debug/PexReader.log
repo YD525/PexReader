@@ -1,0 +1,10 @@
+﻿  PexHelper.cpp
+  PexReader.cpp
+C:\Users\52508\source\repos\PexReader\PexReader\PexHeader.cpp(2,10): warning C4067: unexpected tokens following preprocessor directive - expected a newline
+  (compiling source file 'PexReader.cpp')
+  
+C:\Users\52508\source\repos\PexReader\PexReader\PexHeader.cpp(3,10): warning C4067: unexpected tokens following preprocessor directive - expected a newline
+  (compiling source file 'PexReader.cpp')
+  
+  Generating Code...
+  PexReader.vcxproj -> C:\Users\52508\source\repos\PexReader\x64\Debug\PexReader.exe

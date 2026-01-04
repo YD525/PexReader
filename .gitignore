@@ -1,0 +1,8 @@
+# ===== Visual Studio Build Artifacts =====
+.vs/
+bin/
+obj/
+
+# Ignore miniz files
+EspReader/miniz.c
+EspReader/miniz.h
