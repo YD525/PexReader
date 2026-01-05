@@ -632,7 +632,7 @@ public:
 
         for (uint16_t i = 0; i < stringTable.count; ++i)
         {
-            if (i < stringTable.strings.size() && !stringTable.strings.empty())
+            if (i < stringTable.strings.size())
             {
                 WriteUInt16BE(f, static_cast<uint16_t>(stringTable.strings[i].size()));
 
