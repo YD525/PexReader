@@ -26,6 +26,7 @@ extern "C"
     SSELex_API const wchar_t* C_GetHeaderSourceFileName();
     SSELex_API const wchar_t* C_GetHeaderUsername();
     SSELex_API const wchar_t* C_GetHeaderMachineName();
+    SSELex_API uint32_t C_GetHeaderMagic();
     SSELex_API uint8_t C_GetHeaderMajorVersion();
     SSELex_API uint8_t C_GetHeaderMinorVersion();
     SSELex_API uint16_t C_GetHeaderGameId();
@@ -228,6 +229,11 @@ const wchar_t* C_GetHeaderMachineName()
     if (!PexDataInstance) return L"";
     buffer = PexDataInstance->Header.machinename;
     return buffer.c_str();
+}
+
+uint32_t C_GetHeaderMagic()
+{
+    return PexDataInstance ? PexDataInstance->Header.magic : 0;
 }
 
 uint8_t C_GetHeaderMajorVersion()
