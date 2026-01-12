@@ -16,6 +16,9 @@ extern "C"
     SSELex_API const char* C_GetVersion();
     SSELex_API int C_GetVersionLength();
 
+	SSELex_API int C_ReadPex(const wchar_t* PexPath);
+
+	SSELex_API int C_SavePex(const wchar_t* PexPath);
 	SSELex_API void C_Close();
 }
 
@@ -62,13 +65,31 @@ BOOL APIENTRY DllMain(HMODULE hModule,
 int ReadPex(const wchar_t* PexPath)
 {
 	Clear();
+
 	LastSetPath = PexPath;
 	Data = new PexData();
-
 	Data->Load(PexPath);
 
-	return 0;
+	return 1;
 }
+
+int C_ReadPex(const wchar_t* PexPath)
+{
+	return ReadPex(PexPath);
+}
+
+int SavePex(const wchar_t* PexPath)
+{
+	Data->Save(PexPath);
+	return 1;
+}
+
+int C_SavePex(const wchar_t* PexPath)
+{
+	return SavePex(PexPath);
+}
+
+
 
 void Clear()
 {
@@ -88,7 +109,7 @@ int main()
     setConsoleToUTF8();
 
     PexData PexReader;
-    
+	PexReader.Load(TEXT("C:\\Users\\52508\\Desktop\\TestPex\\din_Config.pex"));
 
     std::cout << "Press Enter to exit...";
     std::cin.get();

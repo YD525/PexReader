@@ -60,12 +60,12 @@ class PexData
         file.close();
     }
 
-    void Save(const string& filename)
+    void Save(const wstring& filename)
     {
         std::ofstream file(filename, std::ios::binary);
         if (!file.is_open())
         {
-            throw std::runtime_error("Unable to create file: " + filename);
+            throw std::runtime_error("Save File Error");
         }
 
         try

@@ -1,15 +1,23 @@
 ﻿  PexHelper.cpp
   PexReader.cpp
-C:\Users\52508\source\repos\PexReader\PexReader\PexReader.cpp(24,13): warning C4273: 'C_GetVersion': inconsistent dll linkage
+C:\Users\52508\source\repos\PexReader\PexReader\PexReader.cpp(27,13): warning C4273: 'C_GetVersion': inconsistent dll linkage
       C:\Users\52508\source\repos\PexReader\PexReader\PexReader.cpp(16,28):
       see previous definition of 'C_GetVersion'
   
-C:\Users\52508\source\repos\PexReader\PexReader\PexReader.cpp(28,5): warning C4273: 'C_GetVersionLength': inconsistent dll linkage
+C:\Users\52508\source\repos\PexReader\PexReader\PexReader.cpp(31,5): warning C4273: 'C_GetVersionLength': inconsistent dll linkage
       C:\Users\52508\source\repos\PexReader\PexReader\PexReader.cpp(17,20):
       see previous definition of 'C_GetVersionLength'
   
-C:\Users\52508\source\repos\PexReader\PexReader\PexReader.cpp(81,6): warning C4273: 'C_Close': inconsistent dll linkage
-      C:\Users\52508\source\repos\PexReader\PexReader\PexReader.cpp(19,18):
+C:\Users\52508\source\repos\PexReader\PexReader\PexReader.cpp(76,5): warning C4273: 'C_ReadPex': inconsistent dll linkage
+      C:\Users\52508\source\repos\PexReader\PexReader\PexReader.cpp(19,17):
+      see previous definition of 'C_ReadPex'
+  
+C:\Users\52508\source\repos\PexReader\PexReader\PexReader.cpp(87,5): warning C4273: 'C_SavePex': inconsistent dll linkage
+      C:\Users\52508\source\repos\PexReader\PexReader\PexReader.cpp(21,17):
+      see previous definition of 'C_SavePex'
+  
+C:\Users\52508\source\repos\PexReader\PexReader\PexReader.cpp(102,6): warning C4273: 'C_Close': inconsistent dll linkage
+      C:\Users\52508\source\repos\PexReader\PexReader\PexReader.cpp(22,18):
       see previous definition of 'C_Close'
   
   PexSections.cpp
@@ -17,6 +25,6 @@ C:\Users\52508\source\repos\PexReader\PexReader\PexReader.cpp(81,6): warning C42
      Creating library C:\Users\52508\source\repos\PexReader\x64\Release\PexReader.lib and object C:\Users\52508\source\repos\PexReader\x64\Release\PexReader.exp
   Generating code
   Previous IPDB not found, fall back to full compilation.
-  All 311 functions were compiled because no usable IPDB/IOBJ from previous compilation was found.
+  All 1234 functions were compiled because no usable IPDB/IOBJ from previous compilation was found.
   Finished generating code
   PexReader.vcxproj -> C:\Users\52508\source\repos\PexReader\x64\Release\PexReader.dll
