@@ -15,6 +15,8 @@ extern "C"
 {
     SSELex_API const char* C_GetVersion();
     SSELex_API int C_GetVersionLength();
+
+	SSELex_API void C_Close();
 }
 
 static const std::string Version = "1.0.0";
@@ -35,6 +37,10 @@ void setConsoleToUTF8() {
 #endif
 }
 
+std::wstring LastSetPath;
+PexData* Data;
+void Clear();
+
 BOOL APIENTRY DllMain(HMODULE hModule,
 	DWORD  ul_reason_for_call,
 	LPVOID lpReserved)
@@ -53,13 +59,36 @@ BOOL APIENTRY DllMain(HMODULE hModule,
 	return TRUE;
 }
 
+int ReadPex(const wchar_t* PexPath)
+{
+	Clear();
+	LastSetPath = PexPath;
+	Data = new PexData();
+
+	Data->Load(PexPath);
+
+	return 0;
+}
+
+void Clear()
+{
+	delete Data;
+	Data = nullptr;
+
+	LastSetPath = TEXT("");
+}
+
+void C_Close()
+{
+	Clear();
+}
 
 int main()
 {
     setConsoleToUTF8();
 
     PexData PexReader;
-    PexReader.Load("C:\\Users\\52508\\Desktop\\TestPex\\din_Config.pex");
+    
 
     std::cout << "Press Enter to exit...";
     std::cin.get();

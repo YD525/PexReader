@@ -16,12 +16,12 @@ class PexData
     uint16_t objectCount;
     vector<Object> objects;
 
-    void Load(const string& filename)
+    void Load(const wstring& filename)
     {
         std::ifstream file(filename, std::ios::binary);
         if (!file.is_open())
         {
-            throw std::runtime_error("Unable to open the file: " + filename);
+            throw std::runtime_error("Open File Error");
         }
 
         try
