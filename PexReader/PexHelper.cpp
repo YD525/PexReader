@@ -146,7 +146,7 @@ class PexData
         for (uint16_t i = 0; i < stringTable.count; ++i)
         {
             stringTable.strings[i] = ReadBytes(f);
-            std::cout << "Utf8Str: " << stringTable.ToUtf8(i) << std::endl;
+            //std::cout << "Utf8Str: " << stringTable.ToUtf8(i) << std::endl;
             //PrintHexAndText(stringTable.strings[i]);
         }
     }
@@ -604,20 +604,24 @@ class PexData
         WriteWString(f, Header.machinename);
     }
 
+
     void WriteStringTable(std::ofstream& f)
     {
         WriteUInt16BE(f, stringTable.count);
 
+        if (stringTable.strings.size() < stringTable.count)
+        {
+            stringTable.strings.resize(stringTable.count);
+        }
+
         for (uint16_t i = 0; i < stringTable.count; ++i)
         {
-            if (i < stringTable.strings.size())
+            const auto& bytes = stringTable.strings[i];
+            WriteUInt16BE(f, static_cast<uint16_t>(bytes.size()));
+
+            if (!bytes.empty())
             {
-                WriteUInt16BE(f, static_cast<uint16_t>(stringTable.strings[i].size()));
-
-                f.write(reinterpret_cast<const char*>(stringTable.strings[i].data()),
-                    stringTable.strings[i].size());
-
-                WriteUInt8(f, 0);
+                f.write(reinterpret_cast<const char*>(bytes.data()), bytes.size());
             }
         }
     }
@@ -710,31 +714,18 @@ class PexData
     void WriteVariableData(std::ofstream& f, const VariableData& data, bool integer_unsigned = false)
     {
         WriteUInt8(f, data.type);
-
         switch (data.type)
         {
-        case 0:
-            break;
-        case 1:
-        case 2:
-            WriteUInt16BE(f, std::get<uint16_t>(data.data));
-            break;
+        case 0: break;
+        case 1: case 2: WriteUInt16BE(f, std::get<uint16_t>(data.data)); break;
         case 3:
             if (integer_unsigned)
-            {
                 WriteUInt32BE(f, static_cast<uint32_t>(std::get<int32_t>(data.data)));
-            }
             else
-            {
                 WriteInt32BE(f, std::get<int32_t>(data.data));
-            }
             break;
-        case 4:
-            WriteFloatBE(f, std::get<float>(data.data));
-            break;
-        case 5:
-            WriteUInt8(f, std::get<uint8_t>(data.data));
-            break;
+        case 4: WriteFloatBE(f, std::get<float>(data.data)); break;
+        case 5: WriteUInt8(f, std::get<uint8_t>(data.data)); break;
         }
     }
 
@@ -746,17 +737,17 @@ class PexData
         WriteUInt32BE(f, prop.userFlags);
         WriteUInt8(f, prop.flags);
 
-        if (prop.flags & 4)
+        if (prop.flags & 4)  
         {
             WriteUInt16BE(f, prop.autoVarName);
         }
 
-        if ((prop.flags & 5) == 1)
+        if ((prop.flags & 5) == 1) 
         {
             WriteFunction(f, prop.readHandler);
         }
 
-        if ((prop.flags & 6) == 2)
+        if ((prop.flags & 6) == 2)  
         {
             WriteFunction(f, prop.writeHandler);
         }
