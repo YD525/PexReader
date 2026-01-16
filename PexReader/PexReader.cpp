@@ -93,11 +93,26 @@ extern "C"
         uint16_t argIndex, uint8_t* type,
         void* value);
 
+    SSELex_API int C_GetFunctionParamInfo(uint16_t objectIndex, uint16_t stateIndex,
+        uint16_t funcIndex, uint16_t paramIndex,
+        uint16_t* name, uint16_t* type);
+
+    SSELex_API uint16_t C_GetFunctionParamCount(uint16_t objectIndex, uint16_t stateIndex,
+        uint16_t funcIndex);
+
+    // Function locals
+    SSELex_API int C_GetFunctionLocalInfo(uint16_t objectIndex, uint16_t stateIndex,
+        uint16_t funcIndex, uint16_t localIndex,
+        uint16_t* name, uint16_t* type);
+
+    SSELex_API uint16_t C_GetFunctionLocalCount(uint16_t objectIndex, uint16_t stateIndex,
+        uint16_t funcIndex);
+
     // Memory management
     SSELex_API void C_FreeBuffer(void* buffer);
 }
 
-static const std::string Version = "1.0.0";
+static const std::string Version = "1.0.1";
 static PexData* PexDataInstance = nullptr;
 static std::wstring LastSetPath;
 
@@ -652,6 +667,116 @@ int C_GetInstructionArgument(uint16_t objectIndex, uint16_t stateIndex,
             break;
         }
     }
+
+    return 1;
+}
+
+// Function parameters functions
+uint16_t C_GetFunctionParamCount(uint16_t objectIndex, uint16_t stateIndex,
+    uint16_t funcIndex)
+{
+    if (!PexDataInstance || objectIndex >= PexDataInstance->objectCount) {
+        return 0;
+    }
+
+    const auto& obj = PexDataInstance->objects[objectIndex];
+    if (stateIndex >= obj.data.numStates) {
+        return 0;
+    }
+
+    const auto& state = obj.data.states[stateIndex];
+    if (funcIndex >= state.numFunctions) {
+        return 0;
+    }
+
+    const auto& namedFunc = state.functions[funcIndex];
+    return namedFunc.function.numParams;
+}
+
+int C_GetFunctionParamInfo(uint16_t objectIndex, uint16_t stateIndex,
+    uint16_t funcIndex, uint16_t paramIndex,
+    uint16_t* name, uint16_t* type)
+{
+    if (!PexDataInstance || objectIndex >= PexDataInstance->objectCount) {
+        return 0;
+    }
+
+    const auto& obj = PexDataInstance->objects[objectIndex];
+    if (stateIndex >= obj.data.numStates) {
+        return 0;
+    }
+
+    const auto& state = obj.data.states[stateIndex];
+    if (funcIndex >= state.numFunctions) {
+        return 0;
+    }
+
+    const auto& namedFunc = state.functions[funcIndex];
+    const auto& func = namedFunc.function;
+
+    if (paramIndex >= func.numParams) {
+        return 0;
+    }
+
+    const auto& param = func.params[paramIndex];
+
+    if (name) *name = param.name;
+    if (type) *type = param.type;
+
+    return 1;
+}
+
+// Function locals functions
+uint16_t C_GetFunctionLocalCount(uint16_t objectIndex, uint16_t stateIndex,
+    uint16_t funcIndex)
+{
+    if (!PexDataInstance || objectIndex >= PexDataInstance->objectCount) {
+        return 0;
+    }
+
+    const auto& obj = PexDataInstance->objects[objectIndex];
+    if (stateIndex >= obj.data.numStates) {
+        return 0;
+    }
+
+    const auto& state = obj.data.states[stateIndex];
+    if (funcIndex >= state.numFunctions) {
+        return 0;
+    }
+
+    const auto& namedFunc = state.functions[funcIndex];
+    return namedFunc.function.numLocals;
+}
+
+int C_GetFunctionLocalInfo(uint16_t objectIndex, uint16_t stateIndex,
+    uint16_t funcIndex, uint16_t localIndex,
+    uint16_t* name, uint16_t* type)
+{
+    if (!PexDataInstance || objectIndex >= PexDataInstance->objectCount) {
+        return 0;
+    }
+
+    const auto& obj = PexDataInstance->objects[objectIndex];
+    if (stateIndex >= obj.data.numStates) {
+        return 0;
+    }
+
+    const auto& state = obj.data.states[stateIndex];
+    if (funcIndex >= state.numFunctions) {
+        return 0;
+    }
+
+    const auto& namedFunc = state.functions[funcIndex];
+    const auto& func = namedFunc.function;
+
+    if (localIndex >= func.numLocals) {
+        return 0;
+    }
+
+    const auto& local = func.locals[localIndex];
+
+    if (name) *name = local.name;
+    if (type) *type = local.type;
 
     return 1;
 }

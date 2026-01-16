@@ -1,143 +1,159 @@
 ﻿  PexHelper.cpp
   PexReader.cpp
-C:\Users\52508\source\repos\PexReader\PexReader\PexReader.cpp(128,13): warning C4273: 'C_GetVersion': inconsistent dll linkage
+C:\Users\52508\source\repos\PexReader\PexReader\PexReader.cpp(143,13): warning C4273: 'C_GetVersion': inconsistent dll linkage
       C:\Users\52508\source\repos\PexReader\PexReader\PexReader.cpp(17,28):
       see previous definition of 'C_GetVersion'
   
-C:\Users\52508\source\repos\PexReader\PexReader\PexReader.cpp(133,5): warning C4273: 'C_GetVersionLength': inconsistent dll linkage
+C:\Users\52508\source\repos\PexReader\PexReader\PexReader.cpp(148,5): warning C4273: 'C_GetVersionLength': inconsistent dll linkage
       C:\Users\52508\source\repos\PexReader\PexReader\PexReader.cpp(18,20):
       see previous definition of 'C_GetVersionLength'
   
-C:\Users\52508\source\repos\PexReader\PexReader\PexReader.cpp(171,5): warning C4273: 'C_ReadPex': inconsistent dll linkage
+C:\Users\52508\source\repos\PexReader\PexReader\PexReader.cpp(186,5): warning C4273: 'C_ReadPex': inconsistent dll linkage
       C:\Users\52508\source\repos\PexReader\PexReader\PexReader.cpp(21,20):
       see previous definition of 'C_ReadPex'
   
-C:\Users\52508\source\repos\PexReader\PexReader\PexReader.cpp(188,5): warning C4273: 'C_SavePex': inconsistent dll linkage
+C:\Users\52508\source\repos\PexReader\PexReader\PexReader.cpp(203,5): warning C4273: 'C_SavePex': inconsistent dll linkage
       C:\Users\52508\source\repos\PexReader\PexReader\PexReader.cpp(22,20):
       see previous definition of 'C_SavePex'
   
-C:\Users\52508\source\repos\PexReader\PexReader\PexReader.cpp(204,6): warning C4273: 'C_Close': inconsistent dll linkage
+C:\Users\52508\source\repos\PexReader\PexReader\PexReader.cpp(219,6): warning C4273: 'C_Close': inconsistent dll linkage
       C:\Users\52508\source\repos\PexReader\PexReader\PexReader.cpp(23,21):
       see previous definition of 'C_Close'
   
-C:\Users\52508\source\repos\PexReader\PexReader\PexReader.cpp(210,16): warning C4273: 'C_GetHeaderSourceFileName': inconsistent dll linkage
+C:\Users\52508\source\repos\PexReader\PexReader\PexReader.cpp(225,16): warning C4273: 'C_GetHeaderSourceFileName': inconsistent dll linkage
       C:\Users\52508\source\repos\PexReader\PexReader\PexReader.cpp(26,31):
       see previous definition of 'C_GetHeaderSourceFileName'
   
-C:\Users\52508\source\repos\PexReader\PexReader\PexReader.cpp(218,16): warning C4273: 'C_GetHeaderUsername': inconsistent dll linkage
+C:\Users\52508\source\repos\PexReader\PexReader\PexReader.cpp(233,16): warning C4273: 'C_GetHeaderUsername': inconsistent dll linkage
       C:\Users\52508\source\repos\PexReader\PexReader\PexReader.cpp(27,31):
       see previous definition of 'C_GetHeaderUsername'
   
-C:\Users\52508\source\repos\PexReader\PexReader\PexReader.cpp(226,16): warning C4273: 'C_GetHeaderMachineName': inconsistent dll linkage
+C:\Users\52508\source\repos\PexReader\PexReader\PexReader.cpp(241,16): warning C4273: 'C_GetHeaderMachineName': inconsistent dll linkage
       C:\Users\52508\source\repos\PexReader\PexReader\PexReader.cpp(28,31):
       see previous definition of 'C_GetHeaderMachineName'
   
-C:\Users\52508\source\repos\PexReader\PexReader\PexReader.cpp(234,10): warning C4273: 'C_GetHeaderMagic': inconsistent dll linkage
+C:\Users\52508\source\repos\PexReader\PexReader\PexReader.cpp(249,10): warning C4273: 'C_GetHeaderMagic': inconsistent dll linkage
       C:\Users\52508\source\repos\PexReader\PexReader\PexReader.cpp(29,25):
       see previous definition of 'C_GetHeaderMagic'
   
-C:\Users\52508\source\repos\PexReader\PexReader\PexReader.cpp(239,9): warning C4273: 'C_GetHeaderMajorVersion': inconsistent dll linkage
+C:\Users\52508\source\repos\PexReader\PexReader\PexReader.cpp(254,9): warning C4273: 'C_GetHeaderMajorVersion': inconsistent dll linkage
       C:\Users\52508\source\repos\PexReader\PexReader\PexReader.cpp(30,24):
       see previous definition of 'C_GetHeaderMajorVersion'
   
-C:\Users\52508\source\repos\PexReader\PexReader\PexReader.cpp(244,9): warning C4273: 'C_GetHeaderMinorVersion': inconsistent dll linkage
+C:\Users\52508\source\repos\PexReader\PexReader\PexReader.cpp(259,9): warning C4273: 'C_GetHeaderMinorVersion': inconsistent dll linkage
       C:\Users\52508\source\repos\PexReader\PexReader\PexReader.cpp(31,24):
       see previous definition of 'C_GetHeaderMinorVersion'
   
-C:\Users\52508\source\repos\PexReader\PexReader\PexReader.cpp(249,10): warning C4273: 'C_GetHeaderGameId': inconsistent dll linkage
+C:\Users\52508\source\repos\PexReader\PexReader\PexReader.cpp(264,10): warning C4273: 'C_GetHeaderGameId': inconsistent dll linkage
       C:\Users\52508\source\repos\PexReader\PexReader\PexReader.cpp(32,25):
       see previous definition of 'C_GetHeaderGameId'
   
-C:\Users\52508\source\repos\PexReader\PexReader\PexReader.cpp(254,10): warning C4273: 'C_GetHeaderCompilationTime': inconsistent dll linkage
+C:\Users\52508\source\repos\PexReader\PexReader\PexReader.cpp(269,10): warning C4273: 'C_GetHeaderCompilationTime': inconsistent dll linkage
       C:\Users\52508\source\repos\PexReader\PexReader\PexReader.cpp(33,25):
       see previous definition of 'C_GetHeaderCompilationTime'
   
-C:\Users\52508\source\repos\PexReader\PexReader\PexReader.cpp(260,10): warning C4273: 'C_GetStringTableCount': inconsistent dll linkage
+C:\Users\52508\source\repos\PexReader\PexReader\PexReader.cpp(275,10): warning C4273: 'C_GetStringTableCount': inconsistent dll linkage
       C:\Users\52508\source\repos\PexReader\PexReader\PexReader.cpp(36,25):
       see previous definition of 'C_GetStringTableCount'
   
-C:\Users\52508\source\repos\PexReader\PexReader\PexReader.cpp(265,5): warning C4273: 'C_GetStringUtf8': inconsistent dll linkage
+C:\Users\52508\source\repos\PexReader\PexReader\PexReader.cpp(280,5): warning C4273: 'C_GetStringUtf8': inconsistent dll linkage
       C:\Users\52508\source\repos\PexReader\PexReader\PexReader.cpp(37,20):
       see previous definition of 'C_GetStringUtf8'
   
-C:\Users\52508\source\repos\PexReader\PexReader\PexReader.cpp(286,5): warning C4273: 'C_GetStringWide': inconsistent dll linkage
+C:\Users\52508\source\repos\PexReader\PexReader\PexReader.cpp(301,5): warning C4273: 'C_GetStringWide': inconsistent dll linkage
       C:\Users\52508\source\repos\PexReader\PexReader\PexReader.cpp(38,20):
       see previous definition of 'C_GetStringWide'
   
-C:\Users\52508\source\repos\PexReader\PexReader\PexReader.cpp(309,9): warning C4273: 'C_HasDebugInfo': inconsistent dll linkage
+C:\Users\52508\source\repos\PexReader\PexReader\PexReader.cpp(324,9): warning C4273: 'C_HasDebugInfo': inconsistent dll linkage
       C:\Users\52508\source\repos\PexReader\PexReader\PexReader.cpp(41,24):
       see previous definition of 'C_HasDebugInfo'
   
-C:\Users\52508\source\repos\PexReader\PexReader\PexReader.cpp(314,10): warning C4273: 'C_GetDebugModificationTime': inconsistent dll linkage
+C:\Users\52508\source\repos\PexReader\PexReader\PexReader.cpp(329,10): warning C4273: 'C_GetDebugModificationTime': inconsistent dll linkage
       C:\Users\52508\source\repos\PexReader\PexReader\PexReader.cpp(42,25):
       see previous definition of 'C_GetDebugModificationTime'
   
-C:\Users\52508\source\repos\PexReader\PexReader\PexReader.cpp(319,10): warning C4273: 'C_GetDebugFunctionCount': inconsistent dll linkage
+C:\Users\52508\source\repos\PexReader\PexReader\PexReader.cpp(334,10): warning C4273: 'C_GetDebugFunctionCount': inconsistent dll linkage
       C:\Users\52508\source\repos\PexReader\PexReader\PexReader.cpp(43,25):
       see previous definition of 'C_GetDebugFunctionCount'
   
-C:\Users\52508\source\repos\PexReader\PexReader\PexReader.cpp(324,5): warning C4273: 'C_GetDebugFunctionInfo': inconsistent dll linkage
+C:\Users\52508\source\repos\PexReader\PexReader\PexReader.cpp(339,5): warning C4273: 'C_GetDebugFunctionInfo': inconsistent dll linkage
       C:\Users\52508\source\repos\PexReader\PexReader\PexReader.cpp(44,20):
       see previous definition of 'C_GetDebugFunctionInfo'
   
-C:\Users\52508\source\repos\PexReader\PexReader\PexReader.cpp(349,10): warning C4273: 'C_GetUserFlagCount': inconsistent dll linkage
+C:\Users\52508\source\repos\PexReader\PexReader\PexReader.cpp(364,10): warning C4273: 'C_GetUserFlagCount': inconsistent dll linkage
       C:\Users\52508\source\repos\PexReader\PexReader\PexReader.cpp(49,25):
       see previous definition of 'C_GetUserFlagCount'
   
-C:\Users\52508\source\repos\PexReader\PexReader\PexReader.cpp(354,5): warning C4273: 'C_GetUserFlagInfo': inconsistent dll linkage
+C:\Users\52508\source\repos\PexReader\PexReader\PexReader.cpp(369,5): warning C4273: 'C_GetUserFlagInfo': inconsistent dll linkage
       C:\Users\52508\source\repos\PexReader\PexReader\PexReader.cpp(50,20):
       see previous definition of 'C_GetUserFlagInfo'
   
-C:\Users\52508\source\repos\PexReader\PexReader\PexReader.cpp(369,10): warning C4273: 'C_GetObjectCount': inconsistent dll linkage
+C:\Users\52508\source\repos\PexReader\PexReader\PexReader.cpp(384,10): warning C4273: 'C_GetObjectCount': inconsistent dll linkage
       C:\Users\52508\source\repos\PexReader\PexReader\PexReader.cpp(53,25):
       see previous definition of 'C_GetObjectCount'
   
-C:\Users\52508\source\repos\PexReader\PexReader\PexReader.cpp(374,5): warning C4273: 'C_GetObjectInfo': inconsistent dll linkage
+C:\Users\52508\source\repos\PexReader\PexReader\PexReader.cpp(389,5): warning C4273: 'C_GetObjectInfo': inconsistent dll linkage
       C:\Users\52508\source\repos\PexReader\PexReader\PexReader.cpp(54,20):
       see previous definition of 'C_GetObjectInfo'
   
-C:\Users\52508\source\repos\PexReader\PexReader\PexReader.cpp(388,5): warning C4273: 'C_GetObjectData': inconsistent dll linkage
+C:\Users\52508\source\repos\PexReader\PexReader\PexReader.cpp(403,5): warning C4273: 'C_GetObjectData': inconsistent dll linkage
       C:\Users\52508\source\repos\PexReader\PexReader\PexReader.cpp(55,20):
       see previous definition of 'C_GetObjectData'
   
-C:\Users\52508\source\repos\PexReader\PexReader\PexReader.cpp(407,10): warning C4273: 'C_GetVariableCount': inconsistent dll linkage
+C:\Users\52508\source\repos\PexReader\PexReader\PexReader.cpp(422,10): warning C4273: 'C_GetVariableCount': inconsistent dll linkage
       C:\Users\52508\source\repos\PexReader\PexReader\PexReader.cpp(60,25):
       see previous definition of 'C_GetVariableCount'
   
-C:\Users\52508\source\repos\PexReader\PexReader\PexReader.cpp(416,5): warning C4273: 'C_GetVariableInfo': inconsistent dll linkage
+C:\Users\52508\source\repos\PexReader\PexReader\PexReader.cpp(431,5): warning C4273: 'C_GetVariableInfo': inconsistent dll linkage
       C:\Users\52508\source\repos\PexReader\PexReader\PexReader.cpp(61,20):
       see previous definition of 'C_GetVariableInfo'
   
-C:\Users\52508\source\repos\PexReader\PexReader\PexReader.cpp(463,10): warning C4273: 'C_GetPropertyCount': inconsistent dll linkage
+C:\Users\52508\source\repos\PexReader\PexReader\PexReader.cpp(478,10): warning C4273: 'C_GetPropertyCount': inconsistent dll linkage
       C:\Users\52508\source\repos\PexReader\PexReader\PexReader.cpp(67,25):
       see previous definition of 'C_GetPropertyCount'
   
-C:\Users\52508\source\repos\PexReader\PexReader\PexReader.cpp(472,5): warning C4273: 'C_GetPropertyInfo': inconsistent dll linkage
+C:\Users\52508\source\repos\PexReader\PexReader\PexReader.cpp(487,5): warning C4273: 'C_GetPropertyInfo': inconsistent dll linkage
       C:\Users\52508\source\repos\PexReader\PexReader\PexReader.cpp(68,20):
       see previous definition of 'C_GetPropertyInfo'
   
-C:\Users\52508\source\repos\PexReader\PexReader\PexReader.cpp(499,10): warning C4273: 'C_GetStateCount': inconsistent dll linkage
+C:\Users\52508\source\repos\PexReader\PexReader\PexReader.cpp(514,10): warning C4273: 'C_GetStateCount': inconsistent dll linkage
       C:\Users\52508\source\repos\PexReader\PexReader\PexReader.cpp(74,25):
       see previous definition of 'C_GetStateCount'
   
-C:\Users\52508\source\repos\PexReader\PexReader\PexReader.cpp(508,5): warning C4273: 'C_GetStateInfo': inconsistent dll linkage
+C:\Users\52508\source\repos\PexReader\PexReader\PexReader.cpp(523,5): warning C4273: 'C_GetStateInfo': inconsistent dll linkage
       C:\Users\52508\source\repos\PexReader\PexReader\PexReader.cpp(75,20):
       see previous definition of 'C_GetStateInfo'
   
-C:\Users\52508\source\repos\PexReader\PexReader\PexReader.cpp(529,5): warning C4273: 'C_GetStateFunctionInfo': inconsistent dll linkage
+C:\Users\52508\source\repos\PexReader\PexReader\PexReader.cpp(544,5): warning C4273: 'C_GetStateFunctionInfo': inconsistent dll linkage
       C:\Users\52508\source\repos\PexReader\PexReader\PexReader.cpp(79,20):
       see previous definition of 'C_GetStateFunctionInfo'
   
-C:\Users\52508\source\repos\PexReader\PexReader\PexReader.cpp(566,5): warning C4273: 'C_GetInstructionInfo': inconsistent dll linkage
+C:\Users\52508\source\repos\PexReader\PexReader\PexReader.cpp(581,5): warning C4273: 'C_GetInstructionInfo': inconsistent dll linkage
       C:\Users\52508\source\repos\PexReader\PexReader\PexReader.cpp(87,20):
       see previous definition of 'C_GetInstructionInfo'
   
-C:\Users\52508\source\repos\PexReader\PexReader\PexReader.cpp(599,5): warning C4273: 'C_GetInstructionArgument': inconsistent dll linkage
+C:\Users\52508\source\repos\PexReader\PexReader\PexReader.cpp(614,5): warning C4273: 'C_GetInstructionArgument': inconsistent dll linkage
       C:\Users\52508\source\repos\PexReader\PexReader\PexReader.cpp(91,20):
       see previous definition of 'C_GetInstructionArgument'
   
-C:\Users\52508\source\repos\PexReader\PexReader\PexReader.cpp(660,6): warning C4273: 'C_FreeBuffer': inconsistent dll linkage
-      C:\Users\52508\source\repos\PexReader\PexReader\PexReader.cpp(97,21):
+C:\Users\52508\source\repos\PexReader\PexReader\PexReader.cpp(675,10): warning C4273: 'C_GetFunctionParamCount': inconsistent dll linkage
+      C:\Users\52508\source\repos\PexReader\PexReader\PexReader.cpp(100,25):
+      see previous definition of 'C_GetFunctionParamCount'
+  
+C:\Users\52508\source\repos\PexReader\PexReader\PexReader.cpp(696,5): warning C4273: 'C_GetFunctionParamInfo': inconsistent dll linkage
+      C:\Users\52508\source\repos\PexReader\PexReader\PexReader.cpp(96,20):
+      see previous definition of 'C_GetFunctionParamInfo'
+  
+C:\Users\52508\source\repos\PexReader\PexReader\PexReader.cpp(730,10): warning C4273: 'C_GetFunctionLocalCount': inconsistent dll linkage
+      C:\Users\52508\source\repos\PexReader\PexReader\PexReader.cpp(108,25):
+      see previous definition of 'C_GetFunctionLocalCount'
+  
+C:\Users\52508\source\repos\PexReader\PexReader\PexReader.cpp(751,5): warning C4273: 'C_GetFunctionLocalInfo': inconsistent dll linkage
+      C:\Users\52508\source\repos\PexReader\PexReader\PexReader.cpp(104,20):
+      see previous definition of 'C_GetFunctionLocalInfo'
+  
+C:\Users\52508\source\repos\PexReader\PexReader\PexReader.cpp(785,6): warning C4273: 'C_FreeBuffer': inconsistent dll linkage
+      C:\Users\52508\source\repos\PexReader\PexReader\PexReader.cpp(112,21):
       see previous definition of 'C_FreeBuffer'
   
   PexSections.cpp
@@ -145,6 +161,6 @@ C:\Users\52508\source\repos\PexReader\PexReader\PexReader.cpp(660,6): warning C4
      Creating library C:\Users\52508\source\repos\PexReader\x64\Release\PexReader.lib and object C:\Users\52508\source\repos\PexReader\x64\Release\PexReader.exp
   Generating code
   Previous IPDB not found, fall back to full compilation.
-  All 1299 functions were compiled because no usable IPDB/IOBJ from previous compilation was found.
+  All 1304 functions were compiled because no usable IPDB/IOBJ from previous compilation was found.
   Finished generating code
   PexReader.vcxproj -> C:\Users\52508\source\repos\PexReader\x64\Release\PexReader.dll
