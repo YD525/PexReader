@@ -158,9 +158,9 @@ C:\Users\52508\source\repos\PexReader\PexReader\PexReader.cpp(785,6): warning C4
   
   PexSections.cpp
   PexStringTable.cpp
-     Creating library C:\Users\52508\source\repos\PexReader\x64\Release\PexReader.lib and object C:\Users\52508\source\repos\PexReader\x64\Release\PexReader.exp
+     Creating library C:\Users\52508\source\repos\PexReader\x64\Release\PEX.Interop.lib and object C:\Users\52508\source\repos\PexReader\x64\Release\PEX.Interop.exp
   Generating code
   Previous IPDB not found, fall back to full compilation.
   All 1304 functions were compiled because no usable IPDB/IOBJ from previous compilation was found.
   Finished generating code
-  PexReader.vcxproj -> C:\Users\52508\source\repos\PexReader\x64\Release\PexReader.dll
+  PexReader.vcxproj -> C:\Users\52508\source\repos\PexReader\x64\Release\PEX.Interop.dll
