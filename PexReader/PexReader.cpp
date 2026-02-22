@@ -19,6 +19,7 @@ extern "C"
 
     // PEX operations
     SSELex_API int C_ReadPex(const wchar_t* PexPath);
+    SSELex_API int C_ModifyStringTable(uint16_t Index, const char* Utf8Str);
     SSELex_API int C_SavePex(const wchar_t* PexPath);
     SSELex_API void C_Close();
 
@@ -197,6 +198,26 @@ int C_ReadPex(const wchar_t* PexPath)
         std::cerr << "Error loading PEX: " << e.what() << std::endl;
         Clear();
         return 0; // Failure
+    }
+}
+
+int C_ModifyStringTable(uint16_t Index, const char* Utf8Str)
+{
+    if (!PexDataInstance)
+        return 0;
+
+    if (!Utf8Str)
+        return 0;
+
+    try
+    {
+        PexDataInstance->ModifyStringTable(Index, std::string(Utf8Str));
+        return 1;
+    }
+    catch (const std::exception& e)
+    {
+        std::cerr << "Error modifying string table: " << e.what() << std::endl;
+        return 0;
     }
 }
 

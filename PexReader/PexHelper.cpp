@@ -60,6 +60,23 @@ class PexData
         file.close();
     }
 
+    void ModifyStringTable(uint16_t Index, const std::string& Utf8Str)
+    {
+        if (Index >= stringTable.count)
+        {
+            throw std::out_of_range("StringTable index out of range: " + std::to_string(Index));
+        }
+
+        size_t len = Utf8Str.size();
+        std::vector<byte> newBytes;
+        newBytes.resize(len + 1);
+
+        std::memcpy(newBytes.data(), Utf8Str.data(), len);
+        newBytes[len] = static_cast<byte>('\0');
+
+        stringTable.strings[Index] = std::move(newBytes);
+    }
+
     void Save(const wstring& filename)
     {
         std::ofstream file(filename, std::ios::binary);
@@ -136,7 +153,6 @@ class PexData
         return result;
 #endif
     }
-
 
     void ReadStringTable(std::ifstream& f)
     {
