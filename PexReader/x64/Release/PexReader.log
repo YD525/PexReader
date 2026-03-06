@@ -173,6 +173,6 @@ C:\Users\52508\source\repos\PexReader\PexReader\PexReader.cpp(746,6): warning C4
      Creating library C:\Users\52508\source\repos\PexReader\x64\Release\Pex.Interop.lib and object C:\Users\52508\source\repos\PexReader\x64\Release\Pex.Interop.exp
   Generating code
   Previous IPDB not found, fall back to full compilation.
-  All 1313 functions were compiled because no usable IPDB/IOBJ from previous compilation was found.
+  All 1316 functions were compiled because no usable IPDB/IOBJ from previous compilation was found.
   Finished generating code
   PexReader.vcxproj -> C:\Users\52508\source\repos\PexReader\x64\Release\Pex.Interop.dll

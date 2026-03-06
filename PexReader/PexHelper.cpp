@@ -68,11 +68,8 @@ class PexData
         }
 
         size_t len = Utf8Str.size();
-        std::vector<byte> newBytes;
-        newBytes.resize(len + 1);
-
+        std::vector<byte> newBytes(len);
         std::memcpy(newBytes.data(), Utf8Str.data(), len);
-        newBytes[len] = static_cast<byte>('\0');
 
         stringTable.strings[Index] = std::move(newBytes);
     }
