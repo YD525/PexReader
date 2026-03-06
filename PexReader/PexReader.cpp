@@ -11,812 +11,763 @@
 #define SSELex_API __declspec(dllimport)
 #endif
 
-extern "C"
+// ============================================================
+//  Handle = PexData* cast to intptr_t
+//  0 / nullptr indicates an invalid handle
+// ============================================================
+
+static const std::string Version = "2.0.0";
+
+// ============================================================
+//  Internal helpers
+// ============================================================
+
+// Convert a UTF-8 std::string to a wide std::wstring
+static std::wstring UTF8ToWString(const std::string& Str)
 {
-    // Version info
-    SSELex_API const char* C_GetVersion();
-    SSELex_API int C_GetVersionLength();
-
-    // PEX operations
-    SSELex_API int C_ReadPex(const wchar_t* PexPath);
-    SSELex_API int C_ModifyStringTable(uint16_t Index, const char* Utf8Str);
-    SSELex_API int C_SavePex(const wchar_t* PexPath);
-    SSELex_API void C_Close();
-
-    // Header info
-    SSELex_API const wchar_t* C_GetHeaderSourceFileName();
-    SSELex_API const wchar_t* C_GetHeaderUsername();
-    SSELex_API const wchar_t* C_GetHeaderMachineName();
-    SSELex_API uint32_t C_GetHeaderMagic();
-    SSELex_API uint8_t C_GetHeaderMajorVersion();
-    SSELex_API uint8_t C_GetHeaderMinorVersion();
-    SSELex_API uint16_t C_GetHeaderGameId();
-    SSELex_API uint64_t C_GetHeaderCompilationTime();
-
-    // String table
-    SSELex_API uint16_t C_GetStringTableCount();
-    SSELex_API int C_GetStringUtf8(uint16_t index, char* buffer, int bufferSize);
-    SSELex_API int C_GetStringWide(uint16_t index, wchar_t* buffer, int bufferSize);
-
-    // Debug info
-    SSELex_API uint8_t C_HasDebugInfo();
-    SSELex_API uint64_t C_GetDebugModificationTime();
-    SSELex_API uint16_t C_GetDebugFunctionCount();
-    SSELex_API int C_GetDebugFunctionInfo(uint16_t index, uint16_t* objectNameIndex,
-        uint16_t* stateNameIndex, uint16_t* functionNameIndex,
-        uint8_t* functionType, uint16_t** lineNumbers, int* lineCount);
-
-    // User flags
-    SSELex_API uint16_t C_GetUserFlagCount();
-    SSELex_API int C_GetUserFlagInfo(uint16_t index, uint16_t* flagNameIndex, uint8_t* flagIndex);
-
-    // Objects
-    SSELex_API uint16_t C_GetObjectCount();
-    SSELex_API int C_GetObjectInfo(uint16_t index, uint16_t* nameIndex, uint32_t* size);
-    SSELex_API int C_GetObjectData(uint16_t objectIndex, uint16_t* parentClassName,
-        uint16_t* docString, uint32_t* userFlags,
-        uint16_t* autoStateName);
-
-    // Variables
-    SSELex_API uint16_t C_GetVariableCount(uint16_t objectIndex);
-    SSELex_API int C_GetVariableInfo(uint16_t objectIndex, uint16_t varIndex,
-        uint16_t* name, uint16_t* typeName,
-        uint32_t* userFlags, uint8_t* dataType,
-        void* dataValue);
-
-    // Properties
-    SSELex_API uint16_t C_GetPropertyCount(uint16_t objectIndex);
-    SSELex_API int C_GetPropertyInfo(uint16_t objectIndex, uint16_t propIndex,
-        uint16_t* name, uint16_t* type,
-        uint16_t* docstring, uint32_t* userFlags,
-        uint8_t* flags, uint16_t* autoVarName);
-
-    // States
-    SSELex_API uint16_t C_GetStateCount(uint16_t objectIndex);
-    SSELex_API int C_GetStateInfo(uint16_t objectIndex, uint16_t stateIndex,
-        uint16_t* name, uint16_t* numFunctions);
-
-    // Functions
-    SSELex_API int C_GetStateFunctionInfo(uint16_t objectIndex, uint16_t stateIndex,
-        uint16_t funcIndex, uint16_t* functionName,
-        uint16_t* returnType, uint16_t* docString,
-        uint32_t* userFlags, uint8_t* flags,
-        uint16_t* numParams, uint16_t* numLocals,
-        uint16_t* numInstructions);
-
-    // Instructions
-    SSELex_API int C_GetInstructionInfo(uint16_t objectIndex, uint16_t stateIndex,
-        uint16_t funcIndex, uint16_t instrIndex,
-        uint8_t* opcode, uint16_t* argCount);
-
-    SSELex_API int C_GetInstructionArgument(uint16_t objectIndex, uint16_t stateIndex,
-        uint16_t funcIndex, uint16_t instrIndex,
-        uint16_t argIndex, uint8_t* type,
-        void* value);
-
-    SSELex_API int C_GetFunctionParamInfo(uint16_t objectIndex, uint16_t stateIndex,
-        uint16_t funcIndex, uint16_t paramIndex,
-        uint16_t* name, uint16_t* type);
-
-    SSELex_API uint16_t C_GetFunctionParamCount(uint16_t objectIndex, uint16_t stateIndex,
-        uint16_t funcIndex);
-
-    // Function locals
-    SSELex_API int C_GetFunctionLocalInfo(uint16_t objectIndex, uint16_t stateIndex,
-        uint16_t funcIndex, uint16_t localIndex,
-        uint16_t* name, uint16_t* type);
-
-    SSELex_API uint16_t C_GetFunctionLocalCount(uint16_t objectIndex, uint16_t stateIndex,
-        uint16_t funcIndex);
-
-    // Memory management
-    SSELex_API void C_FreeBuffer(void* buffer);
+    if (Str.empty()) return {};
+    int Len = MultiByteToWideChar(CP_UTF8, 0, Str.c_str(), (int)Str.size(), nullptr, 0);
+    std::wstring Result(Len, 0);
+    MultiByteToWideChar(CP_UTF8, 0, Str.c_str(), (int)Str.size(), &Result[0], Len);
+    return Result;
 }
 
-static const std::string Version = "1.0.1";
-static PexData* PexDataInstance = nullptr;
-static std::wstring LastSetPath;
-
-// Helper function to convert wstring to UTF-8 for C# interop
-static std::string WStringToUTF8(const std::wstring& wstr)
+// Safely cast a handle back to a PexData pointer; returns nullptr on invalid input
+static inline PexData* GetInst(intptr_t Handle)
 {
-    if (wstr.empty()) return std::string();
-    int size_needed = WideCharToMultiByte(CP_UTF8, 0, wstr.c_str(), (int)wstr.length(),
-        NULL, 0, NULL, NULL);
-    std::string result(size_needed, 0);
-    WideCharToMultiByte(CP_UTF8, 0, wstr.c_str(), (int)wstr.length(),
-        &result[0], size_needed, NULL, NULL);
-    return result;
+    return reinterpret_cast<PexData*>(Handle);
 }
 
-// Helper function to convert UTF-8 to wstring
-static std::wstring UTF8ToWString(const std::string& str)
-{
-    if (str.empty()) return std::wstring();
-    int size_needed = MultiByteToWideChar(CP_UTF8, 0, str.c_str(), (int)str.length(),
-        NULL, 0);
-    std::wstring result(size_needed, 0);
-    MultiByteToWideChar(CP_UTF8, 0, str.c_str(), (int)str.length(),
-        &result[0], size_needed);
-    return result;
-}
+// ============================================================
+//  Console helper
+// ============================================================
 
-const char* C_GetVersion()
+void SetConsoleToUTF8()
 {
-    return Version.c_str();
-}
-
-int C_GetVersionLength()
-{
-    return static_cast<int>(Version.length());
-}
-
-void setConsoleToUTF8() {
 #ifdef _WIN32
     SetConsoleOutputCP(CP_UTF8);
     SetConsoleCP(CP_UTF8);
 #endif
 }
 
-void Clear()
-{
-    delete PexDataInstance;
-    PexDataInstance = nullptr;
-    LastSetPath.clear();
-}
+// ============================================================
+//  DLL entry point
+// ============================================================
 
-BOOL APIENTRY DllMain(HMODULE hModule,
-    DWORD  ul_reason_for_call,
-    LPVOID lpReserved)
+BOOL APIENTRY DllMain(HMODULE, DWORD Reason, LPVOID)
 {
-    switch (ul_reason_for_call)
-    {
-    case DLL_PROCESS_ATTACH:
-        break;
-    case DLL_THREAD_ATTACH:
-        break;
-    case DLL_THREAD_DETACH:
-        break;
-    case DLL_PROCESS_DETACH:
-        Clear();
-        break;
-    }
     return TRUE;
 }
 
-int C_ReadPex(const wchar_t* PexPath)
+// ============================================================
+//  Exported function declarations
+// ============================================================
+extern "C"
 {
-    Clear();
+    // Version
+    SSELex_API const char* C_GetVersion();
+    SSELex_API int            C_GetVersionLength();
 
-    try {
-        PexDataInstance = new PexData();
-        PexDataInstance->Load(PexPath);
-        LastSetPath = PexPath;
-        return 1; // Success
-    }
-    catch (const std::exception& e) {
-        std::cerr << "Error loading PEX: " << e.what() << std::endl;
-        Clear();
-        return 0; // Failure
-    }
+    // Instance lifecycle - each file uses its own independent handle
+    SSELex_API intptr_t       C_CreateInstance();
+    SSELex_API void           C_DestroyInstance(intptr_t Handle);
+
+    // PEX file operations
+    SSELex_API int            C_ReadPex(intptr_t Handle, const wchar_t* PexPath);
+    SSELex_API int            C_ModifyStringTable(intptr_t Handle, uint16_t Index, const char* Utf8Str);
+    SSELex_API int            C_SavePex(intptr_t Handle, const wchar_t* PexPath);
+    SSELex_API void           C_Close(intptr_t Handle);   // Resets the file state without destroying the instance
+
+    // Header accessors
+    SSELex_API const wchar_t* C_GetHeaderSourceFileName(intptr_t Handle);
+    SSELex_API const wchar_t* C_GetHeaderUsername(intptr_t Handle);
+    SSELex_API const wchar_t* C_GetHeaderMachineName(intptr_t Handle);
+    SSELex_API uint32_t       C_GetHeaderMagic(intptr_t Handle);
+    SSELex_API uint8_t        C_GetHeaderMajorVersion(intptr_t Handle);
+    SSELex_API uint8_t        C_GetHeaderMinorVersion(intptr_t Handle);
+    SSELex_API uint16_t       C_GetHeaderGameId(intptr_t Handle);
+    SSELex_API uint64_t       C_GetHeaderCompilationTime(intptr_t Handle);
+
+    // String table
+    SSELex_API uint16_t       C_GetStringTableCount(intptr_t Handle);
+    SSELex_API int            C_GetStringUtf8(intptr_t Handle, uint16_t Index, char* Buffer, int BufferSize);
+    SSELex_API int            C_GetStringWide(intptr_t Handle, uint16_t Index, wchar_t* Buffer, int BufferSize);
+
+    // Debug info
+    SSELex_API uint8_t        C_HasDebugInfo(intptr_t Handle);
+    SSELex_API uint64_t       C_GetDebugModificationTime(intptr_t Handle);
+    SSELex_API uint16_t       C_GetDebugFunctionCount(intptr_t Handle);
+    SSELex_API int            C_GetDebugFunctionInfo(intptr_t Handle, uint16_t Index,
+        uint16_t* ObjectNameIndex, uint16_t* StateNameIndex,
+        uint16_t* FunctionNameIndex, uint8_t* FunctionType,
+        uint16_t** LineNumbers, int* LineCount);
+
+    // User flags
+    SSELex_API uint16_t       C_GetUserFlagCount(intptr_t Handle);
+    SSELex_API int            C_GetUserFlagInfo(intptr_t Handle, uint16_t Index,
+        uint16_t* FlagNameIndex, uint8_t* FlagIndex);
+
+    // Objects
+    SSELex_API uint16_t       C_GetObjectCount(intptr_t Handle);
+    SSELex_API int            C_GetObjectInfo(intptr_t Handle, uint16_t Index,
+        uint16_t* NameIndex, uint32_t* Size);
+    SSELex_API int            C_GetObjectData(intptr_t Handle, uint16_t ObjectIndex,
+        uint16_t* ParentClassName, uint16_t* DocString,
+        uint32_t* UserFlags, uint16_t* AutoStateName);
+
+    // Variables
+    SSELex_API uint16_t       C_GetVariableCount(intptr_t Handle, uint16_t ObjectIndex);
+    SSELex_API int            C_GetVariableInfo(intptr_t Handle, uint16_t ObjectIndex,
+        uint16_t VarIndex, uint16_t* Name, uint16_t* TypeName,
+        uint32_t* UserFlags, uint8_t* DataType, void* DataValue);
+
+    // Properties
+    SSELex_API uint16_t       C_GetPropertyCount(intptr_t Handle, uint16_t ObjectIndex);
+    SSELex_API int            C_GetPropertyInfo(intptr_t Handle, uint16_t ObjectIndex,
+        uint16_t PropIndex, uint16_t* Name, uint16_t* Type,
+        uint16_t* Docstring, uint32_t* UserFlags,
+        uint8_t* Flags, uint16_t* AutoVarName);
+
+    // States
+    SSELex_API uint16_t       C_GetStateCount(intptr_t Handle, uint16_t ObjectIndex);
+    SSELex_API int            C_GetStateInfo(intptr_t Handle, uint16_t ObjectIndex,
+        uint16_t StateIndex, uint16_t* Name, uint16_t* NumFunctions);
+
+    // Functions
+    SSELex_API int            C_GetStateFunctionInfo(intptr_t Handle,
+        uint16_t ObjectIndex, uint16_t StateIndex, uint16_t FuncIndex,
+        uint16_t* FunctionName, uint16_t* ReturnType, uint16_t* DocString,
+        uint32_t* UserFlags, uint8_t* Flags,
+        uint16_t* NumParams, uint16_t* NumLocals, uint16_t* NumInstructions);
+
+    // Instructions
+    SSELex_API int            C_GetInstructionInfo(intptr_t Handle,
+        uint16_t ObjectIndex, uint16_t StateIndex,
+        uint16_t FuncIndex, uint16_t InstrIndex,
+        uint8_t* Opcode, uint16_t* ArgCount);
+    SSELex_API int            C_GetInstructionArgument(intptr_t Handle,
+        uint16_t ObjectIndex, uint16_t StateIndex,
+        uint16_t FuncIndex, uint16_t InstrIndex, uint16_t ArgIndex,
+        uint8_t* Type, void* Value);
+
+    // Function parameters
+    SSELex_API uint16_t       C_GetFunctionParamCount(intptr_t Handle,
+        uint16_t ObjectIndex, uint16_t StateIndex, uint16_t FuncIndex);
+    SSELex_API int            C_GetFunctionParamInfo(intptr_t Handle,
+        uint16_t ObjectIndex, uint16_t StateIndex,
+        uint16_t FuncIndex, uint16_t ParamIndex,
+        uint16_t* Name, uint16_t* Type);
+
+    // Function locals
+    SSELex_API uint16_t       C_GetFunctionLocalCount(intptr_t Handle,
+        uint16_t ObjectIndex, uint16_t StateIndex, uint16_t FuncIndex);
+    SSELex_API int            C_GetFunctionLocalInfo(intptr_t Handle,
+        uint16_t ObjectIndex, uint16_t StateIndex,
+        uint16_t FuncIndex, uint16_t LocalIndex,
+        uint16_t* Name, uint16_t* Type);
+
+    // Memory management
+    SSELex_API void           C_FreeBuffer(void* Buffer);
 }
 
-int C_ModifyStringTable(uint16_t Index, const char* Utf8Str)
+// ============================================================
+//  Implementation
+// ============================================================
+
+const char* C_GetVersion() { return Version.c_str(); }
+int         C_GetVersionLength() { return (int)Version.size(); }
+
+// --------------------------------------------------------
+//  Instance lifecycle
+// --------------------------------------------------------
+
+// Allocate a new PexData instance and return its handle.
+// Returns 0 if allocation fails.
+intptr_t C_CreateInstance()
 {
-    if (!PexDataInstance)
-        return 0;
-
-    if (!Utf8Str)
-        return 0;
-
     try
     {
-        PexDataInstance->ModifyStringTable(Index, std::string(Utf8Str));
-        return 1;
+        PexData* Inst = new PexData();
+        return reinterpret_cast<intptr_t>(Inst);
     }
-    catch (const std::exception& e)
+    catch (...)
     {
-        std::cerr << "Error modifying string table: " << e.what() << std::endl;
         return 0;
     }
 }
 
-int C_SavePex(const wchar_t* PexPath)
+// Free all memory associated with the given handle.
+// The handle must not be used after this call.
+void C_DestroyInstance(intptr_t Handle)
 {
-    if (!PexDataInstance) {
-        return 0;
-    }
+    PexData* Inst = GetInst(Handle);
+    if (Inst) delete Inst;
+}
 
-    try {
-        PexDataInstance->Save(PexPath);
+// --------------------------------------------------------
+//  PEX file operations
+// --------------------------------------------------------
+
+// Load a PEX file into the instance.
+// Returns 1 on success, 0 on failure.
+int C_ReadPex(intptr_t Handle, const wchar_t* PexPath)
+{
+    PexData* Inst = GetInst(Handle);
+    if (!Inst || !PexPath) return 0;
+    try
+    {
+        Inst->Load(PexPath);
         return 1;
     }
-    catch (const std::exception& e) {
-        std::cerr << "Error saving PEX: " << e.what() << std::endl;
+    catch (const std::exception& E)
+    {
+        std::cerr << "Error loading PEX: " << E.what() << "\n";
         return 0;
     }
 }
 
-void C_Close()
+// Replace the string at the given index in the string table.
+// Utf8Str must be a null-terminated UTF-8 string.
+// Returns 1 on success, 0 on failure.
+int C_ModifyStringTable(intptr_t Handle, uint16_t Index, const char* Utf8Str)
 {
-    Clear();
-}
-
-// Header info functions
-const wchar_t* C_GetHeaderSourceFileName()
-{
-    static std::wstring buffer;
-    if (!PexDataInstance) return L"";
-    buffer = PexDataInstance->Header.sourceFileName;
-    return buffer.c_str();
-}
-
-const wchar_t* C_GetHeaderUsername()
-{
-    static std::wstring buffer;
-    if (!PexDataInstance) return L"";
-    buffer = PexDataInstance->Header.username;
-    return buffer.c_str();
-}
-
-const wchar_t* C_GetHeaderMachineName()
-{
-    static std::wstring buffer;
-    if (!PexDataInstance) return L"";
-    buffer = PexDataInstance->Header.machinename;
-    return buffer.c_str();
-}
-
-uint32_t C_GetHeaderMagic()
-{
-    return PexDataInstance ? PexDataInstance->Header.magic : 0;
-}
-
-uint8_t C_GetHeaderMajorVersion()
-{
-    return PexDataInstance ? PexDataInstance->Header.majorVersion : 0;
-}
-
-uint8_t C_GetHeaderMinorVersion()
-{
-    return PexDataInstance ? PexDataInstance->Header.minorVersion : 0;
-}
-
-uint16_t C_GetHeaderGameId()
-{
-    return PexDataInstance ? PexDataInstance->Header.gameId : 0;
-}
-
-uint64_t C_GetHeaderCompilationTime()
-{
-    return PexDataInstance ? PexDataInstance->Header.compilationTime : 0;
-}
-
-// String table functions
-uint16_t C_GetStringTableCount()
-{
-    return PexDataInstance ? PexDataInstance->stringTable.count : 0;
-}
-
-int C_GetStringUtf8(uint16_t index, char* buffer, int bufferSize)
-{
-    if (!PexDataInstance || index >= PexDataInstance->stringTable.count) {
-        return -1;
+    PexData* Inst = GetInst(Handle);
+    if (!Inst || !Utf8Str) return 0;
+    try
+    {
+        Inst->ModifyStringTable(Index, std::string(Utf8Str));
+        return 1;
     }
-
-    try {
-        std::string str = PexDataInstance->stringTable.ToUtf8(index);
-        int length = static_cast<int>(str.length());
-
-        if (buffer && bufferSize > length) {
-            std::memcpy(buffer, str.c_str(), length + 1);
-        }
-
-        return length;
-    }
-    catch (...) {
-        return -1;
-    }
-}
-
-int C_GetStringWide(uint16_t index, wchar_t* buffer, int bufferSize)
-{
-    if (!PexDataInstance || index >= PexDataInstance->stringTable.count) {
-        return -1;
-    }
-
-    try {
-        std::string utf8Str = PexDataInstance->stringTable.ToUtf8(index);
-        std::wstring wideStr = UTF8ToWString(utf8Str);
-        int length = static_cast<int>(wideStr.length());
-
-        if (buffer && bufferSize > length) {
-            std::memcpy(buffer, wideStr.c_str(), (length + 1) * sizeof(wchar_t));
-        }
-
-        return length;
-    }
-    catch (...) {
-        return -1;
-    }
-}
-
-// Debug info functions
-uint8_t C_HasDebugInfo()
-{
-    return PexDataInstance ? PexDataInstance->debugInfo.hasDebugInfo : 0;
-}
-
-uint64_t C_GetDebugModificationTime()
-{
-    return PexDataInstance ? PexDataInstance->debugInfo.modificationTime : 0;
-}
-
-uint16_t C_GetDebugFunctionCount()
-{
-    return PexDataInstance ? PexDataInstance->debugInfo.functionCount : 0;
-}
-
-int C_GetDebugFunctionInfo(uint16_t index, uint16_t* objectNameIndex,
-    uint16_t* stateNameIndex, uint16_t* functionNameIndex,
-    uint8_t* functionType, uint16_t** lineNumbers, int* lineCount)
-{
-    if (!PexDataInstance || index >= PexDataInstance->debugInfo.functionCount) {
+    catch (const std::exception& E)
+    {
+        std::cerr << "Error modifying string table: " << E.what() << "\n";
         return 0;
     }
+}
 
-    const auto& func = PexDataInstance->debugInfo.functions[index];
-
-    if (objectNameIndex) *objectNameIndex = func.objectNameIndex;
-    if (stateNameIndex) *stateNameIndex = func.stateNameIndex;
-    if (functionNameIndex) *functionNameIndex = func.functionNameIndex;
-    if (functionType) *functionType = func.functionType;
-
-    if (lineNumbers && lineCount) {
-        *lineCount = static_cast<int>(func.lineNumbers.size());
-        *lineNumbers = new uint16_t[func.lineNumbers.size()];
-        std::copy(func.lineNumbers.begin(), func.lineNumbers.end(), *lineNumbers);
+// Write the current PEX data to the given file path.
+// Returns 1 on success, 0 on failure.
+int C_SavePex(intptr_t Handle, const wchar_t* PexPath)
+{
+    PexData* Inst = GetInst(Handle);
+    if (!Inst || !PexPath) return 0;
+    try
+    {
+        Inst->Save(PexPath);
+        return 1;
     }
+    catch (const std::exception& E)
+    {
+        std::cerr << "Error saving PEX: " << E.what() << "\n";
+        return 0;
+    }
+}
 
+// Reset the file state inside the instance without freeing the instance itself.
+// Call C_DestroyInstance to fully release memory.
+void C_Close(intptr_t Handle)
+{
+    // If PexData provides a Reset/Clear method, invoke it here.
+    (void)Handle;
+}
+
+// --------------------------------------------------------
+//  Header accessors
+//  Note: string pointers reference a static buffer - copy immediately if needed.
+// --------------------------------------------------------
+
+const wchar_t* C_GetHeaderSourceFileName(intptr_t Handle)
+{
+    static std::wstring Buf;
+    PexData* Inst = GetInst(Handle);
+    if (!Inst) return L"";
+    Buf = Inst->Header.sourceFileName;
+    return Buf.c_str();
+}
+
+const wchar_t* C_GetHeaderUsername(intptr_t Handle)
+{
+    static std::wstring Buf;
+    PexData* Inst = GetInst(Handle);
+    if (!Inst) return L"";
+    Buf = Inst->Header.username;
+    return Buf.c_str();
+}
+
+const wchar_t* C_GetHeaderMachineName(intptr_t Handle)
+{
+    static std::wstring Buf;
+    PexData* Inst = GetInst(Handle);
+    if (!Inst) return L"";
+    Buf = Inst->Header.machinename;
+    return Buf.c_str();
+}
+
+uint32_t C_GetHeaderMagic(intptr_t Handle)
+{
+    PexData* Inst = GetInst(Handle);
+    return Inst ? Inst->Header.magic : 0;
+}
+
+uint8_t C_GetHeaderMajorVersion(intptr_t Handle)
+{
+    PexData* Inst = GetInst(Handle);
+    return Inst ? Inst->Header.majorVersion : 0;
+}
+
+uint8_t C_GetHeaderMinorVersion(intptr_t Handle)
+{
+    PexData* Inst = GetInst(Handle);
+    return Inst ? Inst->Header.minorVersion : 0;
+}
+
+uint16_t C_GetHeaderGameId(intptr_t Handle)
+{
+    PexData* Inst = GetInst(Handle);
+    return Inst ? Inst->Header.gameId : 0;
+}
+
+uint64_t C_GetHeaderCompilationTime(intptr_t Handle)
+{
+    PexData* Inst = GetInst(Handle);
+    return Inst ? Inst->Header.compilationTime : 0;
+}
+
+// --------------------------------------------------------
+//  String table
+// --------------------------------------------------------
+
+uint16_t C_GetStringTableCount(intptr_t Handle)
+{
+    PexData* Inst = GetInst(Handle);
+    return Inst ? Inst->stringTable.count : 0;
+}
+
+// If Buffer is null, returns the required byte length without writing.
+// Returns -1 on error.
+int C_GetStringUtf8(intptr_t Handle, uint16_t Index, char* Buffer, int BufferSize)
+{
+    PexData* Inst = GetInst(Handle);
+    if (!Inst || Index >= Inst->stringTable.count) return -1;
+    try
+    {
+        std::string Str = Inst->stringTable.ToUtf8(Index);
+        int Length = (int)Str.size();
+        if (Buffer && BufferSize > Length)
+            std::memcpy(Buffer, Str.c_str(), Length + 1);
+        return Length;
+    }
+    catch (...) { return -1; }
+}
+
+// If Buffer is null, returns the required character count without writing.
+// Returns -1 on error.
+int C_GetStringWide(intptr_t Handle, uint16_t Index, wchar_t* Buffer, int BufferSize)
+{
+    PexData* Inst = GetInst(Handle);
+    if (!Inst || Index >= Inst->stringTable.count) return -1;
+    try
+    {
+        std::wstring Wide = UTF8ToWString(Inst->stringTable.ToUtf8(Index));
+        int Length = (int)Wide.size();
+        if (Buffer && BufferSize > Length)
+            std::memcpy(Buffer, Wide.c_str(), (Length + 1) * sizeof(wchar_t));
+        return Length;
+    }
+    catch (...) { return -1; }
+}
+
+// --------------------------------------------------------
+//  Debug info
+// --------------------------------------------------------
+
+uint8_t C_HasDebugInfo(intptr_t Handle)
+{
+    PexData* Inst = GetInst(Handle);
+    return Inst ? Inst->debugInfo.hasDebugInfo : 0;
+}
+
+uint64_t C_GetDebugModificationTime(intptr_t Handle)
+{
+    PexData* Inst = GetInst(Handle);
+    return Inst ? Inst->debugInfo.modificationTime : 0;
+}
+
+uint16_t C_GetDebugFunctionCount(intptr_t Handle)
+{
+    PexData* Inst = GetInst(Handle);
+    return Inst ? Inst->debugInfo.functionCount : 0;
+}
+
+// LineNumbers is heap-allocated by this function; the caller must free it via C_FreeBuffer.
+// Returns 1 on success, 0 on failure.
+int C_GetDebugFunctionInfo(intptr_t Handle, uint16_t Index,
+    uint16_t* ObjectNameIndex, uint16_t* StateNameIndex,
+    uint16_t* FunctionNameIndex, uint8_t* FunctionType,
+    uint16_t** LineNumbers, int* LineCount)
+{
+    PexData* Inst = GetInst(Handle);
+    if (!Inst || Index >= Inst->debugInfo.functionCount) return 0;
+
+    const auto& Func = Inst->debugInfo.functions[Index];
+    if (ObjectNameIndex)   *ObjectNameIndex = Func.objectNameIndex;
+    if (StateNameIndex)    *StateNameIndex = Func.stateNameIndex;
+    if (FunctionNameIndex) *FunctionNameIndex = Func.functionNameIndex;
+    if (FunctionType)      *FunctionType = Func.functionType;
+
+    if (LineNumbers && LineCount)
+    {
+        *LineCount = (int)Func.lineNumbers.size();
+        *LineNumbers = new uint16_t[Func.lineNumbers.size()];
+        std::copy(Func.lineNumbers.begin(), Func.lineNumbers.end(), *LineNumbers);
+    }
     return 1;
 }
 
-// User flags functions
-uint16_t C_GetUserFlagCount()
+// --------------------------------------------------------
+//  User flags
+// --------------------------------------------------------
+
+uint16_t C_GetUserFlagCount(intptr_t Handle)
 {
-    return PexDataInstance ? PexDataInstance->userFlagCount : 0;
+    PexData* Inst = GetInst(Handle);
+    return Inst ? Inst->userFlagCount : 0;
 }
 
-int C_GetUserFlagInfo(uint16_t index, uint16_t* flagNameIndex, uint8_t* flagIndex)
+// Returns 1 on success, 0 if the index is out of range.
+int C_GetUserFlagInfo(intptr_t Handle, uint16_t Index,
+    uint16_t* FlagNameIndex, uint8_t* FlagIndex)
 {
-    if (!PexDataInstance || index >= PexDataInstance->userFlagCount) {
-        return 0;
-    }
-
-    const auto& flag = PexDataInstance->userFlags[index];
-
-    if (flagNameIndex) *flagNameIndex = flag.flagNameIndex;
-    if (flagIndex) *flagIndex = flag.flagIndex;
-
+    PexData* Inst = GetInst(Handle);
+    if (!Inst || Index >= Inst->userFlagCount) return 0;
+    const auto& Flag = Inst->userFlags[Index];
+    if (FlagNameIndex) *FlagNameIndex = Flag.flagNameIndex;
+    if (FlagIndex)     *FlagIndex = Flag.flagIndex;
     return 1;
 }
 
-// Objects functions
-uint16_t C_GetObjectCount()
+// --------------------------------------------------------
+//  Objects
+// --------------------------------------------------------
+
+uint16_t C_GetObjectCount(intptr_t Handle)
 {
-    return PexDataInstance ? PexDataInstance->objectCount : 0;
+    PexData* Inst = GetInst(Handle);
+    return Inst ? Inst->objectCount : 0;
 }
 
-int C_GetObjectInfo(uint16_t index, uint16_t* nameIndex, uint32_t* size)
+// Returns 1 on success, 0 if the index is out of range.
+int C_GetObjectInfo(intptr_t Handle, uint16_t Index,
+    uint16_t* NameIndex, uint32_t* Size)
 {
-    if (!PexDataInstance || index >= PexDataInstance->objectCount) {
-        return 0;
-    }
-
-    const auto& obj = PexDataInstance->objects[index];
-
-    if (nameIndex) *nameIndex = obj.nameIndex;
-    if (size) *size = obj.size;
-
+    PexData* Inst = GetInst(Handle);
+    if (!Inst || Index >= Inst->objectCount) return 0;
+    const auto& Obj = Inst->objects[Index];
+    if (NameIndex) *NameIndex = Obj.nameIndex;
+    if (Size)      *Size = Obj.size;
     return 1;
 }
 
-int C_GetObjectData(uint16_t objectIndex, uint16_t* parentClassName,
-    uint16_t* docString, uint32_t* userFlags,
-    uint16_t* autoStateName)
+// Returns 1 on success, 0 if the index is out of range.
+int C_GetObjectData(intptr_t Handle, uint16_t ObjectIndex,
+    uint16_t* ParentClassName, uint16_t* DocString,
+    uint32_t* UserFlags, uint16_t* AutoStateName)
 {
-    if (!PexDataInstance || objectIndex >= PexDataInstance->objectCount) {
-        return 0;
-    }
-
-    const auto& data = PexDataInstance->objects[objectIndex].data;
-
-    if (parentClassName) *parentClassName = data.parentClassName;
-    if (docString) *docString = data.docString;
-    if (userFlags) *userFlags = data.userFlags;
-    if (autoStateName) *autoStateName = data.autoStateName;
-
+    PexData* Inst = GetInst(Handle);
+    if (!Inst || ObjectIndex >= Inst->objectCount) return 0;
+    const auto& Data = Inst->objects[ObjectIndex].data;
+    if (ParentClassName) *ParentClassName = Data.parentClassName;
+    if (DocString)       *DocString = Data.docString;
+    if (UserFlags)       *UserFlags = Data.userFlags;
+    if (AutoStateName)   *AutoStateName = Data.autoStateName;
     return 1;
 }
 
-// Variables functions
-uint16_t C_GetVariableCount(uint16_t objectIndex)
-{
-    if (!PexDataInstance || objectIndex >= PexDataInstance->objectCount) {
-        return 0;
-    }
+// --------------------------------------------------------
+//  Variables
+// --------------------------------------------------------
 
-    return PexDataInstance->objects[objectIndex].data.numVariables;
+uint16_t C_GetVariableCount(intptr_t Handle, uint16_t ObjectIndex)
+{
+    PexData* Inst = GetInst(Handle);
+    if (!Inst || ObjectIndex >= Inst->objectCount) return 0;
+    return Inst->objects[ObjectIndex].data.numVariables;
 }
 
-int C_GetVariableInfo(uint16_t objectIndex, uint16_t varIndex,
-    uint16_t* name, uint16_t* typeName,
-    uint32_t* userFlags, uint8_t* dataType,
-    void* dataValue)
+// DataValue receives the raw bytes of the variable value; interpretation depends on DataType.
+// Pass nullptr for DataValue if only type metadata is needed.
+// Returns 1 on success, 0 on failure.
+int C_GetVariableInfo(intptr_t Handle, uint16_t ObjectIndex, uint16_t VarIndex,
+    uint16_t* Name, uint16_t* TypeName,
+    uint32_t* UserFlags, uint8_t* DataType, void* DataValue)
 {
-    if (!PexDataInstance || objectIndex >= PexDataInstance->objectCount) {
-        return 0;
-    }
-
-    const auto& obj = PexDataInstance->objects[objectIndex];
-    if (varIndex >= obj.data.numVariables) {
-        return 0;
-    }
-
-    const auto& var = obj.data.variables[varIndex];
-
-    if (name) *name = var.name;
-    if (typeName) *typeName = var.typeName;
-    if (userFlags) *userFlags = var.userFlags;
-    if (dataType) *dataType = var.data.type;
-
-    if (dataValue && dataType) {
-        // Copy data value based on type
-        switch (var.data.type) {
-        case 0: // null
-            // Nothing to copy
-            break;
-        case 1: // identifier
-        case 2: // string
-            *reinterpret_cast<uint16_t*>(dataValue) = std::get<uint16_t>(var.data.data);
-            break;
-        case 3: // integer
-            *reinterpret_cast<int32_t*>(dataValue) = std::get<int32_t>(var.data.data);
-            break;
-        case 4: // float
-            *reinterpret_cast<float*>(dataValue) = std::get<float>(var.data.data);
-            break;
-        case 5: // bool
-            *reinterpret_cast<uint8_t*>(dataValue) = std::get<uint8_t>(var.data.data);
-            break;
-        }
-    }
-
-    return 1;
-}
-
-// Properties functions
-uint16_t C_GetPropertyCount(uint16_t objectIndex)
-{
-    if (!PexDataInstance || objectIndex >= PexDataInstance->objectCount) {
-        return 0;
-    }
-
-    return PexDataInstance->objects[objectIndex].data.numProperties;
-}
-
-int C_GetPropertyInfo(uint16_t objectIndex, uint16_t propIndex,
-    uint16_t* name, uint16_t* type,
-    uint16_t* docstring, uint32_t* userFlags,
-    uint8_t* flags, uint16_t* autoVarName)
-{
-    if (!PexDataInstance || objectIndex >= PexDataInstance->objectCount) {
-        return 0;
-    }
-
-    const auto& obj = PexDataInstance->objects[objectIndex];
-    if (propIndex >= obj.data.numProperties) {
-        return 0;
-    }
-
-    const auto& prop = obj.data.properties[propIndex];
-
-    if (name) *name = prop.name;
-    if (type) *type = prop.type;
-    if (docstring) *docstring = prop.docstring;
-    if (userFlags) *userFlags = prop.userFlags;
-    if (flags) *flags = prop.flags;
-    if (autoVarName) *autoVarName = prop.autoVarName;
-
-    return 1;
-}
-
-// States functions
-uint16_t C_GetStateCount(uint16_t objectIndex)
-{
-    if (!PexDataInstance || objectIndex >= PexDataInstance->objectCount) {
-        return 0;
-    }
-
-    return PexDataInstance->objects[objectIndex].data.numStates;
-}
-
-int C_GetStateInfo(uint16_t objectIndex, uint16_t stateIndex,
-    uint16_t* name, uint16_t* numFunctions)
-{
-    if (!PexDataInstance || objectIndex >= PexDataInstance->objectCount) {
-        return 0;
-    }
-
-    const auto& obj = PexDataInstance->objects[objectIndex];
-    if (stateIndex >= obj.data.numStates) {
-        return 0;
-    }
-
-    const auto& state = obj.data.states[stateIndex];
-
-    if (name) *name = state.name;
-    if (numFunctions) *numFunctions = state.numFunctions;
-
-    return 1;
-}
-
-// Functions functions
-int C_GetStateFunctionInfo(uint16_t objectIndex, uint16_t stateIndex,
-    uint16_t funcIndex, uint16_t* functionName,
-    uint16_t* returnType, uint16_t* docString,
-    uint32_t* userFlags, uint8_t* flags,
-    uint16_t* numParams, uint16_t* numLocals,
-    uint16_t* numInstructions)
-{
-    if (!PexDataInstance || objectIndex >= PexDataInstance->objectCount) {
-        return 0;
-    }
-
-    const auto& obj = PexDataInstance->objects[objectIndex];
-    if (stateIndex >= obj.data.numStates) {
-        return 0;
-    }
-
-    const auto& state = obj.data.states[stateIndex];
-    if (funcIndex >= state.numFunctions) {
-        return 0;
-    }
-
-    const auto& namedFunc = state.functions[funcIndex];
-    const auto& func = namedFunc.function;
-
-    if (functionName) *functionName = namedFunc.functionName;
-    if (returnType) *returnType = func.returnType;
-    if (docString) *docString = func.docString;
-    if (userFlags) *userFlags = func.userFlags;
-    if (flags) *flags = func.flags;
-    if (numParams) *numParams = func.numParams;
-    if (numLocals) *numLocals = func.numLocals;
-    if (numInstructions) *numInstructions = func.numInstructions;
-
-    return 1;
-}
-
-// Instructions functions
-int C_GetInstructionInfo(uint16_t objectIndex, uint16_t stateIndex,
-    uint16_t funcIndex, uint16_t instrIndex,
-    uint8_t* opcode, uint16_t* argCount)
-{
-    if (!PexDataInstance || objectIndex >= PexDataInstance->objectCount) {
-        return 0;
-    }
-
-    const auto& obj = PexDataInstance->objects[objectIndex];
-    if (stateIndex >= obj.data.numStates) {
-        return 0;
-    }
-
-    const auto& state = obj.data.states[stateIndex];
-    if (funcIndex >= state.numFunctions) {
-        return 0;
-    }
-
-    const auto& namedFunc = state.functions[funcIndex];
-    const auto& func = namedFunc.function;
-
-    if (instrIndex >= func.numInstructions) {
-        return 0;
-    }
-
-    const auto& instr = func.instructions[instrIndex];
-
-    if (opcode) *opcode = static_cast<uint8_t>(instr.op);
-    if (argCount) *argCount = static_cast<uint16_t>(instr.arguments.size());
-
-    return 1;
-}
-
-int C_GetInstructionArgument(uint16_t objectIndex, uint16_t stateIndex,
-    uint16_t funcIndex, uint16_t instrIndex,
-    uint16_t argIndex, uint8_t* type,
-    void* value)
-{
-    if (!PexDataInstance || objectIndex >= PexDataInstance->objectCount) {
-        return 0;
-    }
-
-    const auto& obj = PexDataInstance->objects[objectIndex];
-    if (stateIndex >= obj.data.numStates) {
-        return 0;
-    }
-
-    const auto& state = obj.data.states[stateIndex];
-    if (funcIndex >= state.numFunctions) {
-        return 0;
-    }
-
-    const auto& namedFunc = state.functions[funcIndex];
-    const auto& func = namedFunc.function;
-
-    if (instrIndex >= func.numInstructions) {
-        return 0;
-    }
-
-    const auto& instr = func.instructions[instrIndex];
-    if (argIndex >= instr.arguments.size()) {
-        return 0;
-    }
-
-    const auto& arg = instr.arguments[argIndex];
-
-    if (type) *type = arg.type;
-
-    if (value) {
-        // Copy data value based on type
-        switch (arg.type) {
-        case 0: // null
-            // Nothing to copy
-            break;
-        case 1: // identifier
-        case 2: // string
-            *reinterpret_cast<uint16_t*>(value) = std::get<uint16_t>(arg.data);
-            break;
-        case 3: // integer
-            *reinterpret_cast<int32_t*>(value) = std::get<int32_t>(arg.data);
-            break;
-        case 4: // float
-            *reinterpret_cast<float*>(value) = std::get<float>(arg.data);
-            break;
-        case 5: // bool
-            *reinterpret_cast<uint8_t*>(value) = std::get<uint8_t>(arg.data);
-            break;
+    PexData* Inst = GetInst(Handle);
+    if (!Inst || ObjectIndex >= Inst->objectCount) return 0;
+    const auto& Obj = Inst->objects[ObjectIndex];
+    if (VarIndex >= Obj.data.numVariables) return 0;
+    const auto& Var = Obj.data.variables[VarIndex];
+    if (Name)      *Name = Var.name;
+    if (TypeName)  *TypeName = Var.typeName;
+    if (UserFlags) *UserFlags = Var.userFlags;
+    if (DataType)  *DataType = Var.data.type;
+    if (DataValue)
+    {
+        switch (Var.data.type)
+        {
+        case 1: case 2: *reinterpret_cast<uint16_t*>(DataValue) = std::get<uint16_t>(Var.data.data); break;
+        case 3:         *reinterpret_cast<int32_t*> (DataValue) = std::get<int32_t>(Var.data.data); break;
+        case 4:         *reinterpret_cast<float*>   (DataValue) = std::get<float>(Var.data.data); break;
+        case 5:         *reinterpret_cast<uint8_t*> (DataValue) = std::get<uint8_t>(Var.data.data); break;
+        default: break;
         }
     }
-
     return 1;
 }
 
-// Function parameters functions
-uint16_t C_GetFunctionParamCount(uint16_t objectIndex, uint16_t stateIndex,
-    uint16_t funcIndex)
+// --------------------------------------------------------
+//  Properties
+// --------------------------------------------------------
+
+uint16_t C_GetPropertyCount(intptr_t Handle, uint16_t ObjectIndex)
 {
-    if (!PexDataInstance || objectIndex >= PexDataInstance->objectCount) {
-        return 0;
-    }
-
-    const auto& obj = PexDataInstance->objects[objectIndex];
-    if (stateIndex >= obj.data.numStates) {
-        return 0;
-    }
-
-    const auto& state = obj.data.states[stateIndex];
-    if (funcIndex >= state.numFunctions) {
-        return 0;
-    }
-
-    const auto& namedFunc = state.functions[funcIndex];
-    return namedFunc.function.numParams;
+    PexData* Inst = GetInst(Handle);
+    if (!Inst || ObjectIndex >= Inst->objectCount) return 0;
+    return Inst->objects[ObjectIndex].data.numProperties;
 }
 
-int C_GetFunctionParamInfo(uint16_t objectIndex, uint16_t stateIndex,
-    uint16_t funcIndex, uint16_t paramIndex,
-    uint16_t* name, uint16_t* type)
+// Returns 1 on success, 0 if any index is out of range.
+int C_GetPropertyInfo(intptr_t Handle, uint16_t ObjectIndex, uint16_t PropIndex,
+    uint16_t* Name, uint16_t* Type, uint16_t* Docstring,
+    uint32_t* UserFlags, uint8_t* Flags, uint16_t* AutoVarName)
 {
-    if (!PexDataInstance || objectIndex >= PexDataInstance->objectCount) {
-        return 0;
-    }
-
-    const auto& obj = PexDataInstance->objects[objectIndex];
-    if (stateIndex >= obj.data.numStates) {
-        return 0;
-    }
-
-    const auto& state = obj.data.states[stateIndex];
-    if (funcIndex >= state.numFunctions) {
-        return 0;
-    }
-
-    const auto& namedFunc = state.functions[funcIndex];
-    const auto& func = namedFunc.function;
-
-    if (paramIndex >= func.numParams) {
-        return 0;
-    }
-
-    const auto& param = func.params[paramIndex];
-
-    if (name) *name = param.name;
-    if (type) *type = param.type;
-
+    PexData* Inst = GetInst(Handle);
+    if (!Inst || ObjectIndex >= Inst->objectCount) return 0;
+    const auto& Obj = Inst->objects[ObjectIndex];
+    if (PropIndex >= Obj.data.numProperties) return 0;
+    const auto& Prop = Obj.data.properties[PropIndex];
+    if (Name)        *Name = Prop.name;
+    if (Type)        *Type = Prop.type;
+    if (Docstring)   *Docstring = Prop.docstring;
+    if (UserFlags)   *UserFlags = Prop.userFlags;
+    if (Flags)       *Flags = Prop.flags;
+    if (AutoVarName) *AutoVarName = Prop.autoVarName;
     return 1;
 }
 
-// Function locals functions
-uint16_t C_GetFunctionLocalCount(uint16_t objectIndex, uint16_t stateIndex,
-    uint16_t funcIndex)
+// --------------------------------------------------------
+//  States
+// --------------------------------------------------------
+
+uint16_t C_GetStateCount(intptr_t Handle, uint16_t ObjectIndex)
 {
-    if (!PexDataInstance || objectIndex >= PexDataInstance->objectCount) {
-        return 0;
-    }
-
-    const auto& obj = PexDataInstance->objects[objectIndex];
-    if (stateIndex >= obj.data.numStates) {
-        return 0;
-    }
-
-    const auto& state = obj.data.states[stateIndex];
-    if (funcIndex >= state.numFunctions) {
-        return 0;
-    }
-
-    const auto& namedFunc = state.functions[funcIndex];
-    return namedFunc.function.numLocals;
+    PexData* Inst = GetInst(Handle);
+    if (!Inst || ObjectIndex >= Inst->objectCount) return 0;
+    return Inst->objects[ObjectIndex].data.numStates;
 }
 
-int C_GetFunctionLocalInfo(uint16_t objectIndex, uint16_t stateIndex,
-    uint16_t funcIndex, uint16_t localIndex,
-    uint16_t* name, uint16_t* type)
+// Returns 1 on success, 0 if any index is out of range.
+int C_GetStateInfo(intptr_t Handle, uint16_t ObjectIndex, uint16_t StateIndex,
+    uint16_t* Name, uint16_t* NumFunctions)
 {
-    if (!PexDataInstance || objectIndex >= PexDataInstance->objectCount) {
-        return 0;
-    }
-
-    const auto& obj = PexDataInstance->objects[objectIndex];
-    if (stateIndex >= obj.data.numStates) {
-        return 0;
-    }
-
-    const auto& state = obj.data.states[stateIndex];
-    if (funcIndex >= state.numFunctions) {
-        return 0;
-    }
-
-    const auto& namedFunc = state.functions[funcIndex];
-    const auto& func = namedFunc.function;
-
-    if (localIndex >= func.numLocals) {
-        return 0;
-    }
-
-    const auto& local = func.locals[localIndex];
-
-    if (name) *name = local.name;
-    if (type) *type = local.type;
-
+    PexData* Inst = GetInst(Handle);
+    if (!Inst || ObjectIndex >= Inst->objectCount) return 0;
+    const auto& Obj = Inst->objects[ObjectIndex];
+    if (StateIndex >= Obj.data.numStates) return 0;
+    const auto& State = Obj.data.states[StateIndex];
+    if (Name)         *Name = State.name;
+    if (NumFunctions) *NumFunctions = State.numFunctions;
     return 1;
 }
 
-// Memory management
-void C_FreeBuffer(void* buffer)
+// --------------------------------------------------------
+//  Functions
+// --------------------------------------------------------
+
+// Returns 1 on success, 0 if any index is out of range.
+int C_GetStateFunctionInfo(intptr_t Handle,
+    uint16_t ObjectIndex, uint16_t StateIndex, uint16_t FuncIndex,
+    uint16_t* FunctionName, uint16_t* ReturnType, uint16_t* DocString,
+    uint32_t* UserFlags, uint8_t* Flags,
+    uint16_t* NumParams, uint16_t* NumLocals, uint16_t* NumInstructions)
 {
-    if (buffer) {
-        delete[] reinterpret_cast<uint8_t*>(buffer);
-    }
+    PexData* Inst = GetInst(Handle);
+    if (!Inst || ObjectIndex >= Inst->objectCount) return 0;
+    const auto& Obj = Inst->objects[ObjectIndex];
+    if (StateIndex >= Obj.data.numStates) return 0;
+    const auto& State = Obj.data.states[StateIndex];
+    if (FuncIndex >= State.numFunctions) return 0;
+    const auto& NamedFunc = State.functions[FuncIndex];
+    const auto& Func = NamedFunc.function;
+    if (FunctionName)    *FunctionName = NamedFunc.functionName;
+    if (ReturnType)      *ReturnType = Func.returnType;
+    if (DocString)       *DocString = Func.docString;
+    if (UserFlags)       *UserFlags = Func.userFlags;
+    if (Flags)           *Flags = Func.flags;
+    if (NumParams)       *NumParams = Func.numParams;
+    if (NumLocals)       *NumLocals = Func.numLocals;
+    if (NumInstructions) *NumInstructions = Func.numInstructions;
+    return 1;
 }
 
-// Main function for testing
+// --------------------------------------------------------
+//  Instructions
+// --------------------------------------------------------
+
+// Returns 1 on success, 0 if any index is out of range.
+int C_GetInstructionInfo(intptr_t Handle,
+    uint16_t ObjectIndex, uint16_t StateIndex,
+    uint16_t FuncIndex, uint16_t InstrIndex,
+    uint8_t* Opcode, uint16_t* ArgCount)
+{
+    PexData* Inst = GetInst(Handle);
+    if (!Inst || ObjectIndex >= Inst->objectCount) return 0;
+    const auto& Obj = Inst->objects[ObjectIndex];
+    if (StateIndex >= Obj.data.numStates) return 0;
+    const auto& State = Obj.data.states[StateIndex];
+    if (FuncIndex >= State.numFunctions) return 0;
+    const auto& Func = State.functions[FuncIndex].function;
+    if (InstrIndex >= Func.numInstructions) return 0;
+    const auto& Instr = Func.instructions[InstrIndex];
+    if (Opcode)   *Opcode = static_cast<uint8_t>(Instr.op);
+    if (ArgCount) *ArgCount = static_cast<uint16_t>(Instr.arguments.size());
+    return 1;
+}
+
+// Value receives the raw bytes of the argument; interpretation depends on Type.
+// Returns 1 on success, 0 if any index is out of range.
+int C_GetInstructionArgument(intptr_t Handle,
+    uint16_t ObjectIndex, uint16_t StateIndex,
+    uint16_t FuncIndex, uint16_t InstrIndex, uint16_t ArgIndex,
+    uint8_t* Type, void* Value)
+{
+    PexData* Inst = GetInst(Handle);
+    if (!Inst || ObjectIndex >= Inst->objectCount) return 0;
+    const auto& Obj = Inst->objects[ObjectIndex];
+    if (StateIndex >= Obj.data.numStates) return 0;
+    const auto& State = Obj.data.states[StateIndex];
+    if (FuncIndex >= State.numFunctions) return 0;
+    const auto& Func = State.functions[FuncIndex].function;
+    if (InstrIndex >= Func.numInstructions) return 0;
+    const auto& Instr = Func.instructions[InstrIndex];
+    if (ArgIndex >= Instr.arguments.size()) return 0;
+    const auto& Arg = Instr.arguments[ArgIndex];
+    if (Type) *Type = Arg.type;
+    if (Value)
+    {
+        switch (Arg.type)
+        {
+        case 1: case 2: *reinterpret_cast<uint16_t*>(Value) = std::get<uint16_t>(Arg.data); break;
+        case 3:         *reinterpret_cast<int32_t*> (Value) = std::get<int32_t>(Arg.data); break;
+        case 4:         *reinterpret_cast<float*>   (Value) = std::get<float>(Arg.data); break;
+        case 5:         *reinterpret_cast<uint8_t*> (Value) = std::get<uint8_t>(Arg.data); break;
+        default: break;
+        }
+    }
+    return 1;
+}
+
+// --------------------------------------------------------
+//  Function parameters
+// --------------------------------------------------------
+
+uint16_t C_GetFunctionParamCount(intptr_t Handle,
+    uint16_t ObjectIndex, uint16_t StateIndex, uint16_t FuncIndex)
+{
+    PexData* Inst = GetInst(Handle);
+    if (!Inst || ObjectIndex >= Inst->objectCount) return 0;
+    const auto& Obj = Inst->objects[ObjectIndex];
+    if (StateIndex >= Obj.data.numStates) return 0;
+    const auto& State = Obj.data.states[StateIndex];
+    if (FuncIndex >= State.numFunctions) return 0;
+    return State.functions[FuncIndex].function.numParams;
+}
+
+// Returns 1 on success, 0 if any index is out of range.
+int C_GetFunctionParamInfo(intptr_t Handle,
+    uint16_t ObjectIndex, uint16_t StateIndex,
+    uint16_t FuncIndex, uint16_t ParamIndex,
+    uint16_t* Name, uint16_t* Type)
+{
+    PexData* Inst = GetInst(Handle);
+    if (!Inst || ObjectIndex >= Inst->objectCount) return 0;
+    const auto& Obj = Inst->objects[ObjectIndex];
+    if (StateIndex >= Obj.data.numStates) return 0;
+    const auto& State = Obj.data.states[StateIndex];
+    if (FuncIndex >= State.numFunctions) return 0;
+    const auto& Func = State.functions[FuncIndex].function;
+    if (ParamIndex >= Func.numParams) return 0;
+    const auto& Param = Func.params[ParamIndex];
+    if (Name) *Name = Param.name;
+    if (Type) *Type = Param.type;
+    return 1;
+}
+
+// --------------------------------------------------------
+//  Function locals
+// --------------------------------------------------------
+
+uint16_t C_GetFunctionLocalCount(intptr_t Handle,
+    uint16_t ObjectIndex, uint16_t StateIndex, uint16_t FuncIndex)
+{
+    PexData* Inst = GetInst(Handle);
+    if (!Inst || ObjectIndex >= Inst->objectCount) return 0;
+    const auto& Obj = Inst->objects[ObjectIndex];
+    if (StateIndex >= Obj.data.numStates) return 0;
+    const auto& State = Obj.data.states[StateIndex];
+    if (FuncIndex >= State.numFunctions) return 0;
+    return State.functions[FuncIndex].function.numLocals;
+}
+
+// Returns 1 on success, 0 if any index is out of range.
+int C_GetFunctionLocalInfo(intptr_t Handle,
+    uint16_t ObjectIndex, uint16_t StateIndex,
+    uint16_t FuncIndex, uint16_t LocalIndex,
+    uint16_t* Name, uint16_t* Type)
+{
+    PexData* Inst = GetInst(Handle);
+    if (!Inst || ObjectIndex >= Inst->objectCount) return 0;
+    const auto& Obj = Inst->objects[ObjectIndex];
+    if (StateIndex >= Obj.data.numStates) return 0;
+    const auto& State = Obj.data.states[StateIndex];
+    if (FuncIndex >= State.numFunctions) return 0;
+    const auto& Func = State.functions[FuncIndex].function;
+    if (LocalIndex >= Func.numLocals) return 0;
+    const auto& Local = Func.locals[LocalIndex];
+    if (Name) *Name = Local.name;
+    if (Type) *Type = Local.type;
+    return 1;
+}
+
+// --------------------------------------------------------
+//  Memory management
+// --------------------------------------------------------
+
+// Free a buffer that was heap-allocated by this DLL (e.g. line number arrays).
+void C_FreeBuffer(void* Buffer)
+{
+    if (Buffer)
+        delete[] reinterpret_cast<uint8_t*>(Buffer);
+}
+
+// ============================================================
+//  Entry point for manual testing
+// ============================================================
+
 int main()
 {
-    setConsoleToUTF8();
+    SetConsoleToUTF8();
 
-    PexData PexReader;
-    PexReader.Load(TEXT("C:\\Users\\52508\\Desktop\\TestPex\\din_Config.pex"));
+    intptr_t H1 = C_CreateInstance();
+    intptr_t H2 = C_CreateInstance();
+
+    C_ReadPex(H1, TEXT("C:\\test\\file1.pex"));
+    C_ReadPex(H2, TEXT("C:\\test\\file2.pex"));
+
+    std::cout << "File1 object count: " << C_GetObjectCount(H1) << "\n";
+    std::cout << "File2 object count: " << C_GetObjectCount(H2) << "\n";
+
+    C_DestroyInstance(H1);
+    C_DestroyInstance(H2);
 
     std::cout << "Press Enter to exit...";
     std::cin.get();
