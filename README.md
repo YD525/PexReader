@@ -8,3 +8,8 @@ Most of the logic in this library is based on [sse-pex-interface](https://github
 
 Encoding and identification section [SSE-Auto-Translator](https://github.com/Cutleast/SSE-Auto-Translator).
 
+# Contributors:
+
+YD525 (https://github.com/YD525).
+
+Cutleast (https://github.com/cutleast).
