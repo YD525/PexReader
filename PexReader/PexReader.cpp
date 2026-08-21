@@ -1,5 +1,6 @@
 #include <iostream>
 #include "PexHelper.cpp"
+#include "LineNumberBuffer.h"
 
 #define NOMINMAX
 #define WIN32_LEAN_AND_MEAN
@@ -16,7 +17,7 @@
 //  0 / nullptr indicates an invalid handle
 // ============================================================
 
-static const std::string Version = "2.0.0";
+static const std::string Version = "1.0.1.2";
 
 // ============================================================
 //  Internal helpers
@@ -418,8 +419,7 @@ int C_GetDebugFunctionInfo(intptr_t Handle, uint16_t Index,
     if (LineNumbers && LineCount)
     {
         *LineCount = (int)Func.lineNumbers.size();
-        *LineNumbers = new uint16_t[Func.lineNumbers.size()];
-        std::copy(Func.lineNumbers.begin(), Func.lineNumbers.end(), *LineNumbers);
+        *LineNumbers = pex::interop::CopyLineNumbers(Func.lineNumbers);
     }
     return 1;
 }
@@ -742,11 +742,10 @@ int C_GetFunctionLocalInfo(intptr_t Handle,
 //  Memory management
 // --------------------------------------------------------
 
-// Free a buffer that was heap-allocated by this DLL (e.g. line number arrays).
+// Free a line-number buffer returned by C_GetDebugFunctionInfo while preserving the original ABI.
 void C_FreeBuffer(void* Buffer)
 {
-    if (Buffer)
-        delete[] reinterpret_cast<uint8_t*>(Buffer);
+    pex::interop::FreeLineNumbers(static_cast<uint16_t*>(Buffer));
 }
 
 // ============================================================
