@@ -17,7 +17,7 @@
 //  0 / nullptr indicates an invalid handle
 // ============================================================
 
-static const std::string Version = "1.0.1.2";
+static const std::string Version = "1.0.1.3";
 
 // ============================================================
 //  Internal helpers
@@ -220,9 +220,8 @@ int C_ReadPex(intptr_t Handle, const wchar_t* PexPath)
         Inst->Load(PexPath);
         return 1;
     }
-    catch (const std::exception& E)
+    catch (...)
     {
-        std::cerr << "Error loading PEX: " << E.what() << "\n";
         return 0;
     }
 }
@@ -239,9 +238,8 @@ int C_ModifyStringTable(intptr_t Handle, uint16_t Index, const char* Utf8Str)
         Inst->ModifyStringTable(Index, std::string(Utf8Str));
         return 1;
     }
-    catch (const std::exception& E)
+    catch (...)
     {
-        std::cerr << "Error modifying string table: " << E.what() << "\n";
         return 0;
     }
 }
@@ -257,9 +255,8 @@ int C_SavePex(intptr_t Handle, const wchar_t* PexPath)
         Inst->Save(PexPath);
         return 1;
     }
-    catch (const std::exception& E)
+    catch (...)
     {
-        std::cerr << "Error saving PEX: " << E.what() << "\n";
         return 0;
     }
 }
@@ -268,8 +265,9 @@ int C_SavePex(intptr_t Handle, const wchar_t* PexPath)
 // Call C_DestroyInstance to fully release memory.
 void C_Close(intptr_t Handle)
 {
-    // If PexData provides a Reset/Clear method, invoke it here.
-    (void)Handle;
+    PexData* Inst = GetInst(Handle);
+    if (Inst)
+        *Inst = PexData{};
 }
 
 // --------------------------------------------------------
@@ -407,6 +405,9 @@ int C_GetDebugFunctionInfo(intptr_t Handle, uint16_t Index,
     uint16_t* FunctionNameIndex, uint8_t* FunctionType,
     uint16_t** LineNumbers, int* LineCount)
 {
+    if (LineNumbers) *LineNumbers = nullptr;
+    if (LineCount) *LineCount = 0;
+
     PexData* Inst = GetInst(Handle);
     if (!Inst || Index >= Inst->debugInfo.functionCount) return 0;
 
@@ -418,8 +419,16 @@ int C_GetDebugFunctionInfo(intptr_t Handle, uint16_t Index,
 
     if (LineNumbers && LineCount)
     {
-        *LineCount = (int)Func.lineNumbers.size();
-        *LineNumbers = pex::interop::CopyLineNumbers(Func.lineNumbers);
+        try
+        {
+            *LineNumbers = pex::interop::CopyLineNumbers(Func.lineNumbers);
+            *LineCount = static_cast<int>(Func.lineNumbers.size());
+        }
+        catch (...)
+        {
+            *LineNumbers = nullptr;
+            return 0;
+        }
     }
     return 1;
 }
