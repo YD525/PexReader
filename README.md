@@ -16,9 +16,12 @@ Build the x64 Release configuration:
 
 ```powershell
 msbuild .\PexReader.sln /m /p:Configuration=Release /p:Platform=x64
+.\scripts\Run-Tests.ps1 -Configuration Release -Platform x64
 ```
 
 The resulting library is written to `x64\Release\PEX.Interop.dll`.
+The parser suite runs non-interactively through the Visual Studio C++ test runner. Its synthetic PEX fixtures and
+their license status are documented in `PexReader.Tests/Fixtures/README.md`.
 
 ## Releases
 

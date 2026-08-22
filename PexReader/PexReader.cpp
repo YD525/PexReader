@@ -17,7 +17,7 @@
 //  0 / nullptr indicates an invalid handle
 // ============================================================
 
-static const std::string Version = "1.0.1.3";
+static const std::string Version = "1.0.1.4";
 
 // ============================================================
 //  Internal helpers

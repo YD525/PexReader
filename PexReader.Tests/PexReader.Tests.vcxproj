@@ -84,6 +84,25 @@
     <ClCompile Include="LineNumberBufferTests.cpp" />
     <ClCompile Include="PexParserTests.cpp" />
   </ItemGroup>
+  <ItemGroup>
+    <None Include="Fixtures\README.md" />
+    <Content Include="Fixtures\malformed-truncated.pex.hex">
+      <DeploymentContent>true</DeploymentContent>
+    </Content>
+    <Content Include="Fixtures\skyrim-3.1.pex.hex">
+      <DeploymentContent>true</DeploymentContent>
+    </Content>
+    <Content Include="Fixtures\skyrim-se-3.2-unicode.pex.hex">
+      <DeploymentContent>true</DeploymentContent>
+    </Content>
+  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <Target Name="CopyParserFixtures" AfterTargets="Build">
+    <ItemGroup>
+      <ParserFixture Include="$(ProjectDir)Fixtures\*.hex" />
+    </ItemGroup>
+    <MakeDir Directories="$(OutDir)Fixtures" />
+    <Copy SourceFiles="@(ParserFixture)" DestinationFolder="$(OutDir)Fixtures" SkipUnchangedFiles="true" />
+  </Target>
   <ImportGroup Label="ExtensionTargets" />
 </Project>
