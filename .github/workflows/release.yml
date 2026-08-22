@@ -14,25 +14,44 @@ jobs:
 
     steps:
       - name: Check out source
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Configure MSBuild
-        uses: microsoft/setup-msbuild@v2
+        uses: microsoft/setup-msbuild@v3
 
-      - name: Build x64 release
+      - name: Build x64 release without warnings
         shell: pwsh
-        run: msbuild .\PexReader.sln /m /p:Configuration=Release /p:Platform=x64
+        run: .\scripts\Invoke-NativeBuild.ps1 -Configuration Release -Platform x64 -ArtifactDirectory .\.ci-artifacts\build
+
+      - name: Run PEX regression tests
+        shell: pwsh
+        run: .\scripts\Run-Tests.ps1 -Configuration Release -Platform x64 -ResultsDirectory .\.ci-artifacts\tests
+
+      - name: Upload failure diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: release-diagnostics
+          path: .ci-artifacts
+          if-no-files-found: ignore
+          retention-days: 7
 
       - name: Create checksum
         shell: pwsh
         run: |
           $artifact = ".\x64\Release\PEX.Interop.dll"
+          $header = ".\PexReader\PexReaderApi.h"
           if (-not (Test-Path -LiteralPath $artifact)) {
               throw "Release artifact was not produced: $artifact"
+          }
+          if (-not (Test-Path -LiteralPath $header)) {
+              throw "Public ABI header was not found: $header"
           }
 
           $hash = (Get-FileHash -LiteralPath $artifact -Algorithm SHA256).Hash.ToLowerInvariant()
           "$hash  PEX.Interop.dll" | Set-Content "$artifact.sha256" -Encoding ascii
+          $headerHash = (Get-FileHash -LiteralPath $header -Algorithm SHA256).Hash.ToLowerInvariant()
+          "$headerHash  PexReaderApi.h" | Set-Content "$header.sha256" -Encoding ascii
 
       - name: Publish GitHub Release
         shell: pwsh
@@ -42,5 +61,7 @@ jobs:
           gh release create "$env:GITHUB_REF_NAME" `
             ".\x64\Release\PEX.Interop.dll" `
             ".\x64\Release\PEX.Interop.dll.sha256" `
+            ".\PexReader\PexReaderApi.h" `
+            ".\PexReader\PexReaderApi.h.sha256" `
             --generate-notes `
             --verify-tag

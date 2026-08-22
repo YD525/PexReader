@@ -2,8 +2,6 @@
 #include "Record.h"
 #include "PexHeader.cpp"
 #include "PexSections.cpp"
-#include <iostream>
-#include <sstream>
 
 class PexData
 {
@@ -11,9 +9,9 @@ class PexData
     RecordHeader Header;
     StringTable stringTable;
     DebugInfo debugInfo;
-    uint16_t userFlagCount;
+    uint16_t userFlagCount = 0;
     vector<UserFlag> userFlags;
-    uint16_t objectCount;
+    uint16_t objectCount = 0;
     vector<Object> objects;
 
     void Load(const wstring& filename)
@@ -24,40 +22,24 @@ class PexData
             throw std::runtime_error("Open File Error");
         }
 
+        PexBinaryReader reader(file);
+        PexData parsed;
+
         try
         {
-            std::cout << "Reading Header..." << std::endl;
-            ReadHeader(file);
-            std::cout << "Position after header: " << file.tellg() << std::endl;
-
-            std::cout << "Reading StringTable..." << std::endl;
-            ReadStringTable(file);
-            std::cout << "Position after string table: " << file.tellg() << std::endl;
-            std::cout << "String count: " << stringTable.count << std::endl;
-
-            std::cout << "Reading DebugInfo..." << std::endl;
-            ReadDebugInfo(file);
-            std::cout << "Position after debug info: " << file.tellg() << std::endl;
-
-            std::cout << "Reading UserFlags..." << std::endl;
-            ReadUserFlags(file);
-            std::cout << "Position after user flags: " << file.tellg() << std::endl;
-            std::cout << "User flag count: " << userFlagCount << std::endl;
-
-            std::cout << "Reading Objects..." << std::endl;
-            ReadObjects(file);
-            std::cout << "Position after objects: " << file.tellg() << std::endl;
-
-            std::cout << "Load complete!" << std::endl;
+            parsed.ReadHeader(reader);
+            parsed.ReadStringTable(reader);
+            parsed.ReadDebugInfo(reader);
+            parsed.ReadUserFlags(reader);
+            parsed.ReadObjects(reader);
         }
-        catch (const std::exception& e)
+        catch (const std::exception& exception)
         {
-            std::cerr << "Error at file position: " << file.tellg() << std::endl;
-            file.close();
-            throw std::runtime_error(string("Loading failed: ") + e.what());
+            throw std::runtime_error(
+                "PEX parse failed at byte " + std::to_string(reader.Position()) + ": " + exception.what());
         }
 
-        file.close();
+        *this = std::move(parsed);
     }
 
     void ModifyStringTable(uint16_t Index, const std::string& Utf8Str)
@@ -66,6 +48,8 @@ class PexData
         {
             throw std::out_of_range("StringTable index out of range: " + std::to_string(Index));
         }
+
+        CheckedUInt16Length(Utf8Str.size(), "String table entry");
 
         size_t len = Utf8Str.size();
         std::vector<byte> newBytes(len);
@@ -100,245 +84,141 @@ class PexData
     }
 
     private:
-    void ReadHeader(std::ifstream& f)
+    void ReadHeader(PexBinaryReader& reader)
     {
-        Header.magic = ReadUInt32BE(f);
+        Header.magic = ReadUInt32BE(reader);
         if (Header.magic != 0xFA57C0DE)
         {
             throw std::runtime_error("Invalid PEX file format (Magic number error)");
         }
 
-        Header.majorVersion = ReadUInt8(f);
-        Header.minorVersion = ReadUInt8(f);
-        Header.gameId = ReadUInt16BE(f);
-        Header.compilationTime = ReadUInt64BE(f);
-        Header.sourceFileName = ReadWString(f);
-        Header.username = ReadWString(f);
-        Header.machinename = ReadWString(f);
+        Header.majorVersion = ReadUInt8(reader);
+        Header.minorVersion = ReadUInt8(reader);
+        Header.gameId = ReadUInt16BE(reader);
+        Header.compilationTime = ReadUInt64BE(reader);
+        Header.sourceFileName = ReadWString(reader);
+        Header.username = ReadWString(reader);
+        Header.machinename = ReadWString(reader);
     }
 
-
-    std::string toUtf8String(const std::wstring& wstr)
+    void ReadStringTable(PexBinaryReader& reader)
     {
-#if __cplusplus >= 201103L
-        std::wstring_convert<std::codecvt_utf8<wchar_t>> converter;
-        try {
-            return converter.to_bytes(wstr);
-        }
-        catch (...) {
-            std::string result;
-            for (wchar_t wc : wstr) {
-                if (wc < 128) {
-                    result.push_back(static_cast<char>(wc));
-                }
-                else {
-                    result.push_back('?');
-                }
-            }
-            return result;
-        }
-#else
-        std::string result;
-        for (wchar_t wc : wstr) {
-            if (wc < 128) {
-                result.push_back(static_cast<char>(wc));
-            }
-            else {
-                result.push_back('?');
-            }
-        }
-        return result;
-#endif
-    }
-
-    void ReadStringTable(std::ifstream& f)
-    {
-        stringTable.count = ReadUInt16BE(f);
+        stringTable.count = ReadUInt16BE(reader);
+        reader.ValidateCount(stringTable.count, 2, "String table count");
         stringTable.strings.resize(stringTable.count);
 
         for (uint16_t i = 0; i < stringTable.count; ++i)
-        {
-            stringTable.strings[i] = ReadBytes(f);
-            //std::cout << "Utf8Str: " << stringTable.ToUtf8(i) << std::endl;
-            //PrintHexAndText(stringTable.strings[i]);
-        }
+            stringTable.strings[i] = ReadBytes(reader);
     }
 
-    /*void ReadStringTable(std::ifstream& f)
+    void ReadDebugInfo(PexBinaryReader& reader)
     {
-        stringTable.count = ReadUInt16BE(f);
-        stringTable.strings.resize(stringTable.count);
-        stringTable.strings_data.resize(stringTable.count);
-
-        const size_t MAX_LENGTH = 1024;
-
-        for (uint16_t i = 0; i < stringTable.count; ++i)
-        {
-            std::streampos posBeforeStringRead = f.tellg();
-
-            std::vector<byte> buffer;
-            byte currentByte;
-
-            size_t bytesRead = 0;
-
-            while (f.read(reinterpret_cast<char*>(&currentByte), 1))
-            {
-                if (bytesRead >= MAX_LENGTH)
-                {
-                    buffer.clear();
-                    std::cout << "Exceeded MAX_LENGTH, clearing buffer." << std::endl;
-                    break;
-                }
-
-                if (std::to_integer<unsigned char>(currentByte) == 0)
-                {
-                    break;
-                }
-
-                buffer.push_back(currentByte);
-                ++bytesRead;
-            }
-
-            std::string strFromData;
-            if (!buffer.empty())
-            {
-                size_t startIndex = 0;
-
-                if (std::to_integer<unsigned char>(buffer[0]) == 0x00)
-                {
-                    startIndex = 1;
-                }
-
-
-                for (size_t j = startIndex; j < buffer.size(); ++j)
-                {
-                    strFromData.push_back(static_cast<char>(std::to_integer<unsigned char>(buffer[j]))); 
-                }
-            }
-
-
-            if (strFromData.empty())
-            {
-                f.seekg(posBeforeStringRead, std::ios::beg);
-                std::cout << "No valid UTF-8 data found, reverting to the first stone (original string)." << std::endl;
-
-                stringTable.strings[i] = ReadWString(f);
-                stringTable.strings_data[i].clear();
-            }
-            else
-            {
-                std::cout << "Valid UTF-8 data found, using the second stone." << std::endl;
-                stringTable.strings_data[i] = buffer;
-                std::cout << "UTF-8 Data: " << strFromData << std::endl;
-            }
-        }
-    }*/
-
-    void ReadDebugInfo(std::ifstream& f)
-    {
-        debugInfo.hasDebugInfo = ReadUInt8(f);
-        std::cout << "  Has debug info: " << static_cast<int>(debugInfo.hasDebugInfo) << std::endl;
+        debugInfo.hasDebugInfo = ReadUInt8(reader);
+        if (debugInfo.hasDebugInfo > 1)
+            throw std::runtime_error("Debug info flag is invalid.");
 
         if (debugInfo.hasDebugInfo)
         {
-            debugInfo.modificationTime = ReadUInt64BE(f);
-            debugInfo.functionCount = ReadUInt16BE(f);
+            debugInfo.modificationTime = ReadUInt64BE(reader);
+            debugInfo.functionCount = ReadUInt16BE(reader);
+            reader.ValidateCount(debugInfo.functionCount, 9, "Debug function count");
             debugInfo.functions.resize(debugInfo.functionCount);
 
             for (uint16_t i = 0; i < debugInfo.functionCount; ++i)
-            {
-                ReadDebugFunction(f, debugInfo.functions[i]);
-            }
+                ReadDebugFunction(reader, debugInfo.functions[i]);
         }
     }
 
-    void ReadDebugFunction(std::ifstream& f, DebugFunction& func)
+    void ReadDebugFunction(PexBinaryReader& reader, DebugFunction& func)
     {
-        func.objectNameIndex = ReadUInt16BE(f);
-        func.stateNameIndex = ReadUInt16BE(f);
-        func.functionNameIndex = ReadUInt16BE(f);
-        func.functionType = ReadUInt8(f);
-        func.instructionCount = ReadUInt16BE(f);
+        func.objectNameIndex = ReadUInt16BE(reader);
+        func.stateNameIndex = ReadUInt16BE(reader);
+        func.functionNameIndex = ReadUInt16BE(reader);
+        func.functionType = ReadUInt8(reader);
+        func.instructionCount = ReadUInt16BE(reader);
+        reader.ValidateCount(func.instructionCount, 2, "Debug line-number count");
         func.lineNumbers.resize(func.instructionCount);
 
         for (uint16_t i = 0; i < func.instructionCount; ++i)
-        {
-            func.lineNumbers[i] = ReadUInt16BE(f);
-        }
+            func.lineNumbers[i] = ReadUInt16BE(reader);
     }
 
-    void ReadUserFlags(std::ifstream& f)
+    void ReadUserFlags(PexBinaryReader& reader)
     {
-        userFlagCount = ReadUInt16BE(f);
+        userFlagCount = ReadUInt16BE(reader);
+        reader.ValidateCount(userFlagCount, 3, "User flag count");
         userFlags.resize(userFlagCount);
 
         for (uint16_t i = 0; i < userFlagCount; ++i)
         {
-            userFlags[i].flagNameIndex = ReadUInt16BE(f);
-            userFlags[i].flagIndex = ReadUInt8(f);
+            userFlags[i].flagNameIndex = ReadUInt16BE(reader);
+            userFlags[i].flagIndex = ReadUInt8(reader);
         }
     }
 
-    void ReadObjects(std::ifstream& f)
+    void ReadObjects(PexBinaryReader& reader)
     {
-        objectCount = ReadUInt16BE(f);
+        objectCount = ReadUInt16BE(reader);
+        reader.ValidateCount(objectCount, 24, "Object count");
         objects.reserve(objectCount);
 
         for (uint16_t i = 0; i < objectCount; ++i)
         {
-            uint16_t nameIndex = ReadUInt16BE(f);
-            uint32_t size = ReadUInt32BE(f);
+            const uint16_t nameIndex = ReadUInt16BE(reader);
+            const uint32_t size = ReadUInt32BE(reader);
+            if (size > reader.Remaining())
+                throw std::runtime_error("Object size exceeds the remaining PEX input.");
 
             objects.emplace_back(nameIndex, size);
-            ReadObjectData(f, objects.back().data);
+            const std::uint64_t objectDataStart = reader.Position();
+            ReadObjectData(reader, objects.back().data);
+            if (reader.Position() - objectDataStart != size)
+                throw std::runtime_error("Object size does not match the parsed object data.");
         }
     }
 
-    void ReadObjectData(std::ifstream& f, ObjectData& data)
+    void ReadObjectData(PexBinaryReader& reader, ObjectData& data)
     {
-        data.parentClassName = ReadUInt16BE(f);
-        data.docString = ReadUInt16BE(f);
-        data.userFlags = ReadUInt32BE(f);
-        data.autoStateName = ReadUInt16BE(f);
+        data.parentClassName = ReadUInt16BE(reader);
+        data.docString = ReadUInt16BE(reader);
+        data.userFlags = ReadUInt32BE(reader);
+        data.autoStateName = ReadUInt16BE(reader);
 
         // Variables
-        data.numVariables = ReadUInt16BE(f);
+        data.numVariables = ReadUInt16BE(reader);
+        reader.ValidateCount(data.numVariables, 9, "Object variable count");
         data.variables.resize(data.numVariables);
         for (uint16_t i = 0; i < data.numVariables; ++i)
-        {
-            ReadVariable(f, data.variables[i]);
-        }
+            ReadVariable(reader, data.variables[i]);
 
         // Properties
-        data.numProperties = ReadUInt16BE(f);
+        data.numProperties = ReadUInt16BE(reader);
+        reader.ValidateCount(data.numProperties, 11, "Object property count");
         data.properties.resize(data.numProperties);
         for (uint16_t i = 0; i < data.numProperties; ++i)
-        {
-            ReadProperty(f, data.properties[i]);
-        }
+            ReadProperty(reader, data.properties[i]);
 
         // States
-        data.numStates = ReadUInt16BE(f);
+        data.numStates = ReadUInt16BE(reader);
+        reader.ValidateCount(data.numStates, 4, "Object state count");
         data.states.resize(data.numStates);
         for (uint16_t i = 0; i < data.numStates; ++i)
-        {
-            ReadState(f, data.states[i]);
-        }
+            ReadState(reader, data.states[i]);
     }
 
-    void ReadVariable(std::ifstream& f, Variable& var)
+    void ReadVariable(PexBinaryReader& reader, Variable& var)
     {
-        var.name = ReadUInt16BE(f);
-        var.typeName = ReadUInt16BE(f);
-        var.userFlags = ReadUInt32BE(f);
+        var.name = ReadUInt16BE(reader);
+        var.typeName = ReadUInt16BE(reader);
+        var.userFlags = ReadUInt32BE(reader);
 
-        ReadVariableData(f, var.data, true);
+        ReadVariableData(reader, var.data, true);
     }
 
-    void ReadVariableData(std::ifstream& f, VariableData& data, bool integer_unsigned = false)
+    void ReadVariableData(PexBinaryReader& reader, VariableData& data, bool integer_unsigned = false)
     {
-        std::streampos pos = f.tellg();
-        data.type = ReadUInt8(f);
+        const std::uint64_t position = reader.Position();
+        data.type = ReadUInt8(reader);
 
         switch (data.type)
         {
@@ -347,114 +227,119 @@ class PexData
             break;
         case 1: // identifier
         case 2: // string
-            data.data = ReadUInt16BE(f);
+            data.data = ReadUInt16BE(reader);
             break;
         case 3: // integer
             if (integer_unsigned)
             {
-                uint32_t uint_val = ReadUInt32BE(f);
-                data.data = static_cast<int32_t>(uint_val);
+                const uint32_t unsignedValue = ReadUInt32BE(reader);
+                data.data = static_cast<int32_t>(unsignedValue);
             }
             else
             {
-                data.data = ReadInt32BE(f);
+                data.data = ReadInt32BE(reader);
             }
             break;
         case 4: // float
-            data.data = ReadFloatBE(f);
+            data.data = ReadFloatBE(reader);
             break;
         case 5: // bool
-            data.data = ReadUInt8(f);
+            data.data = ReadUInt8(reader);
             break;
         default:
         {
             std::string error = "Unknown variable data type: " +
                 std::to_string(static_cast<int>(data.type)) +
-                " at file position: " + std::to_string(pos);
+                " at file position: " + std::to_string(position);
             throw std::runtime_error(error);
         }
         }
     }
 
-    void ReadProperty(std::ifstream& f, Property& prop)
+    void ReadProperty(PexBinaryReader& reader, Property& prop)
     {
-        prop.name = ReadUInt16BE(f);
-        prop.type = ReadUInt16BE(f);
-        prop.docstring = ReadUInt16BE(f);
-        prop.userFlags = ReadUInt32BE(f);
-        prop.flags = ReadUInt8(f);
+        prop.name = ReadUInt16BE(reader);
+        prop.type = ReadUInt16BE(reader);
+        prop.docstring = ReadUInt16BE(reader);
+        prop.userFlags = ReadUInt32BE(reader);
+        prop.flags = ReadUInt8(reader);
 
         // autoVarName (if flags & 4)
         if (prop.flags & 4)
         {
-            prop.autoVarName = ReadUInt16BE(f);
+            prop.autoVarName = ReadUInt16BE(reader);
         }
 
         // readHandler (if flags & 5 == 1)
         if ((prop.flags & 5) == 1)
         {
-            ReadFunction(f, prop.readHandler);
+            ReadFunction(reader, prop.readHandler);
         }
 
         // writeHandler (if flags & 6 == 2)
         if ((prop.flags & 6) == 2)
         {
-            ReadFunction(f, prop.writeHandler);
+            ReadFunction(reader, prop.writeHandler);
         }
     }
 
-    void ReadState(std::ifstream& f, State& state)
+    void ReadState(PexBinaryReader& reader, State& state)
     {
-        state.name = ReadUInt16BE(f);
-        state.numFunctions = ReadUInt16BE(f);
+        state.name = ReadUInt16BE(reader);
+        state.numFunctions = ReadUInt16BE(reader);
 
+        reader.ValidateCount(state.numFunctions, 17, "State function count");
         state.functions.resize(state.numFunctions);
 
         for (uint16_t i = 0; i < state.numFunctions; ++i)
         {
-            state.functions[i].functionName = ReadUInt16BE(f);
-           
-            ReadFunction(f, state.functions[i].function);
+            state.functions[i].functionName = ReadUInt16BE(reader);
+            ReadFunction(reader, state.functions[i].function);
         }
     }
 
-    void ReadFunction(std::ifstream& f, Function& func)
+    void ReadFunction(PexBinaryReader& reader, Function& func)
     {
-        func.returnType = ReadUInt16BE(f);
-        func.docString = ReadUInt16BE(f);
-        func.userFlags = ReadUInt32BE(f);
-        func.flags = ReadUInt8(f);
+        func.returnType = ReadUInt16BE(reader);
+        func.docString = ReadUInt16BE(reader);
+        func.userFlags = ReadUInt32BE(reader);
+        func.flags = ReadUInt8(reader);
 
         // Parameters
-        func.numParams = ReadUInt16BE(f);
+        func.numParams = ReadUInt16BE(reader);
+        reader.ValidateCount(func.numParams, 4, "Function parameter count");
         func.params.resize(func.numParams);
         for (uint16_t i = 0; i < func.numParams; ++i)
         {
-            func.params[i].name = ReadUInt16BE(f);
-            func.params[i].type = ReadUInt16BE(f);
+            func.params[i].name = ReadUInt16BE(reader);
+            func.params[i].type = ReadUInt16BE(reader);
         }
 
         // Locals
-        func.numLocals = ReadUInt16BE(f);
+        func.numLocals = ReadUInt16BE(reader);
+        reader.ValidateCount(func.numLocals, 4, "Function local count");
         func.locals.resize(func.numLocals);
         for (uint16_t i = 0; i < func.numLocals; ++i)
         {
-            func.locals[i].name = ReadUInt16BE(f);
-            func.locals[i].type = ReadUInt16BE(f);
+            func.locals[i].name = ReadUInt16BE(reader);
+            func.locals[i].type = ReadUInt16BE(reader);
         }
 
         // Instructions
-        func.numInstructions = ReadUInt16BE(f);
+        func.numInstructions = ReadUInt16BE(reader);
+        reader.ValidateCount(func.numInstructions, 1, "Function instruction count");
         func.instructions.resize(func.numInstructions);
         for (uint16_t i = 0; i < func.numInstructions; ++i)
-        {
-            ReadInstruction(f, func.instructions[i]);
-        }
+            ReadInstruction(reader, func.instructions[i]);
     }
 
-    void ReadInstruction(std::ifstream& f, Instruction& instr)
+    void ReadInstruction(PexBinaryReader& reader, Instruction& instr)
     {
-        instr.op = static_cast<Opcode>(ReadUInt8(f));
+        const std::uint8_t opcode = ReadUInt8(reader);
+        if (opcode > static_cast<std::uint8_t>(Opcode::array_rfindelement))
+            throw std::runtime_error("Instruction opcode is invalid.");
+
+        instr.op = static_cast<Opcode>(opcode);
 
         switch (instr.op)
         {
@@ -464,26 +349,23 @@ class PexData
         case Opcode::callmethod:
         {
             VariableData result, self, methodName, argCountData;
-            ReadVariableData(f, result);
-            ReadVariableData(f, self);
-            ReadVariableData(f, methodName);
-            ReadVariableData(f, argCountData);
+            reader.ValidateCount(4, 1, "Call method header arguments");
+            ReadVariableData(reader, result);
+            ReadVariableData(reader, self);
+            ReadVariableData(reader, methodName);
+            ReadVariableData(reader, argCountData);
 
             instr.arguments.push_back(result);
             instr.arguments.push_back(self);
             instr.arguments.push_back(methodName);
             instr.arguments.push_back(argCountData);
 
-            uint16_t argCount = 0;
-            if (argCountData.type == 3)
-            {
-                argCount = static_cast<uint16_t>(std::get<int32_t>(argCountData.data));
-            }
+            const uint16_t argCount = ReadCallArgumentCount(reader, argCountData);
 
             for (uint16_t i = 0; i < argCount; ++i)
             {
                 VariableData arg;
-                ReadVariableData(f, arg);
+                ReadVariableData(reader, arg);
                 instr.arguments.push_back(arg);
             }
             break;
@@ -492,24 +374,21 @@ class PexData
         case Opcode::callparent:
         {
             VariableData result, methodName, argCountData;
-            ReadVariableData(f, result);
-            ReadVariableData(f, methodName);
-            ReadVariableData(f, argCountData);
+            reader.ValidateCount(3, 1, "Call parent header arguments");
+            ReadVariableData(reader, result);
+            ReadVariableData(reader, methodName);
+            ReadVariableData(reader, argCountData);
 
             instr.arguments.push_back(result);
             instr.arguments.push_back(methodName);
             instr.arguments.push_back(argCountData);
 
-            uint16_t argCount = 0;
-            if (argCountData.type == 3)
-            {
-                argCount = static_cast<uint16_t>(std::get<int32_t>(argCountData.data));
-            }
+            const uint16_t argCount = ReadCallArgumentCount(reader, argCountData);
 
             for (uint16_t i = 0; i < argCount; ++i)
             {
                 VariableData arg;
-                ReadVariableData(f, arg);
+                ReadVariableData(reader, arg);
                 instr.arguments.push_back(arg);
             }
             break;
@@ -518,26 +397,23 @@ class PexData
         case Opcode::callstatic:
         {
             VariableData result, className, methodName, argCountData;
-            ReadVariableData(f, result);
-            ReadVariableData(f, className);
-            ReadVariableData(f, methodName);
-            ReadVariableData(f, argCountData);
+            reader.ValidateCount(4, 1, "Call static header arguments");
+            ReadVariableData(reader, result);
+            ReadVariableData(reader, className);
+            ReadVariableData(reader, methodName);
+            ReadVariableData(reader, argCountData);
 
             instr.arguments.push_back(result);
             instr.arguments.push_back(className);
             instr.arguments.push_back(methodName);
             instr.arguments.push_back(argCountData);
 
-            uint16_t argCount = 0;
-            if (argCountData.type == 3)
-            {
-                argCount = static_cast<uint16_t>(std::get<int32_t>(argCountData.data));
-            }
+            const uint16_t argCount = ReadCallArgumentCount(reader, argCountData);
 
             for (uint16_t i = 0; i < argCount; ++i)
             {
                 VariableData arg;
-                ReadVariableData(f, arg);
+                ReadVariableData(reader, arg);
                 instr.arguments.push_back(arg);
             }
             break;
@@ -545,19 +421,33 @@ class PexData
 
         default:
         {
-            int argCount = GetOpcodeArgumentCount(instr.op);
+            const std::size_t argCount = GetOpcodeArgumentCount(instr.op);
+            reader.ValidateCount(argCount, 1, "Instruction argument count");
             instr.arguments.resize(argCount);
 
-            for (int i = 0; i < argCount; ++i)
-            {
-                ReadVariableData(f, instr.arguments[i]);
-            }
+            for (std::size_t i = 0; i < argCount; ++i)
+                ReadVariableData(reader, instr.arguments[i]);
             break;
         }
         }
     }
 
-    int GetOpcodeArgumentCount(Opcode op)
+    uint16_t ReadCallArgumentCount(PexBinaryReader& reader, const VariableData& argumentCountData)
+    {
+        constexpr std::int32_t MaxCallArgumentCount = 4096;
+
+        if (argumentCountData.type != 3)
+            throw std::runtime_error("Call argument count is not encoded as an integer.");
+
+        const std::int32_t count = std::get<std::int32_t>(argumentCountData.data);
+        if (count < 0 || count > MaxCallArgumentCount)
+            throw std::runtime_error("Call argument count exceeds the configured limit.");
+
+        reader.ValidateCount(static_cast<std::size_t>(count), 1, "Call argument count");
+        return static_cast<uint16_t>(count);
+    }
+
+    std::size_t GetOpcodeArgumentCount(Opcode op)
     {
         switch (op)
         {
@@ -600,7 +490,7 @@ class PexData
         case Opcode::array_rfindelement:
             return 4;
         default:
-            return 0;
+            throw std::runtime_error("Instruction opcode is invalid.");
         }
     }
 
@@ -630,7 +520,7 @@ class PexData
         for (uint16_t i = 0; i < stringTable.count; ++i)
         {
             const auto& bytes = stringTable.strings[i];
-            WriteUInt16BE(f, static_cast<uint16_t>(bytes.size()));
+            WriteUInt16BE(f, CheckedUInt16Length(bytes.size(), "String table entry"));
 
             if (!bytes.empty())
             {
