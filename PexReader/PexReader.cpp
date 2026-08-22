@@ -1,4 +1,3 @@
-#include <iostream>
 #include "PexHelper.cpp"
 #include "LineNumberBuffer.h"
 
@@ -6,18 +5,14 @@
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 
-#ifdef SSELexApi_EXPORTS
-#define SSELex_API __declspec(dllexport)
-#else
-#define SSELex_API __declspec(dllimport)
-#endif
+#define PEX_READER_API __declspec(dllexport)
 
 // ============================================================
 //  Handle = PexData* cast to intptr_t
 //  0 / nullptr indicates an invalid handle
 // ============================================================
 
-static const std::string Version = "1.0.1.4";
+static const std::string Version = "1.0.1.5";
 
 // ============================================================
 //  Internal helpers
@@ -40,22 +35,10 @@ static inline PexData* GetInst(intptr_t Handle)
 }
 
 // ============================================================
-//  Console helper
-// ============================================================
-
-void SetConsoleToUTF8()
-{
-#ifdef _WIN32
-    SetConsoleOutputCP(CP_UTF8);
-    SetConsoleCP(CP_UTF8);
-#endif
-}
-
-// ============================================================
 //  DLL entry point
 // ============================================================
 
-BOOL APIENTRY DllMain(HMODULE, DWORD Reason, LPVOID)
+BOOL APIENTRY DllMain(HMODULE, DWORD, LPVOID)
 {
     return TRUE;
 }
@@ -66,109 +49,109 @@ BOOL APIENTRY DllMain(HMODULE, DWORD Reason, LPVOID)
 extern "C"
 {
     // Version
-    SSELex_API const char* C_GetVersion();
-    SSELex_API int            C_GetVersionLength();
+    PEX_READER_API const char* C_GetVersion();
+    PEX_READER_API int            C_GetVersionLength();
 
     // Instance lifecycle - each file uses its own independent handle
-    SSELex_API intptr_t       C_CreateInstance();
-    SSELex_API void           C_DestroyInstance(intptr_t Handle);
+    PEX_READER_API intptr_t       C_CreateInstance();
+    PEX_READER_API void           C_DestroyInstance(intptr_t Handle);
 
     // PEX file operations
-    SSELex_API int            C_ReadPex(intptr_t Handle, const wchar_t* PexPath);
-    SSELex_API int            C_ModifyStringTable(intptr_t Handle, uint16_t Index, const char* Utf8Str);
-    SSELex_API int            C_SavePex(intptr_t Handle, const wchar_t* PexPath);
-    SSELex_API void           C_Close(intptr_t Handle);   // Resets the file state without destroying the instance
+    PEX_READER_API int            C_ReadPex(intptr_t Handle, const wchar_t* PexPath);
+    PEX_READER_API int            C_ModifyStringTable(intptr_t Handle, uint16_t Index, const char* Utf8Str);
+    PEX_READER_API int            C_SavePex(intptr_t Handle, const wchar_t* PexPath);
+    PEX_READER_API void           C_Close(intptr_t Handle);   // Resets the file state without destroying the instance
 
     // Header accessors
-    SSELex_API const wchar_t* C_GetHeaderSourceFileName(intptr_t Handle);
-    SSELex_API const wchar_t* C_GetHeaderUsername(intptr_t Handle);
-    SSELex_API const wchar_t* C_GetHeaderMachineName(intptr_t Handle);
-    SSELex_API uint32_t       C_GetHeaderMagic(intptr_t Handle);
-    SSELex_API uint8_t        C_GetHeaderMajorVersion(intptr_t Handle);
-    SSELex_API uint8_t        C_GetHeaderMinorVersion(intptr_t Handle);
-    SSELex_API uint16_t       C_GetHeaderGameId(intptr_t Handle);
-    SSELex_API uint64_t       C_GetHeaderCompilationTime(intptr_t Handle);
+    PEX_READER_API const wchar_t* C_GetHeaderSourceFileName(intptr_t Handle);
+    PEX_READER_API const wchar_t* C_GetHeaderUsername(intptr_t Handle);
+    PEX_READER_API const wchar_t* C_GetHeaderMachineName(intptr_t Handle);
+    PEX_READER_API uint32_t       C_GetHeaderMagic(intptr_t Handle);
+    PEX_READER_API uint8_t        C_GetHeaderMajorVersion(intptr_t Handle);
+    PEX_READER_API uint8_t        C_GetHeaderMinorVersion(intptr_t Handle);
+    PEX_READER_API uint16_t       C_GetHeaderGameId(intptr_t Handle);
+    PEX_READER_API uint64_t       C_GetHeaderCompilationTime(intptr_t Handle);
 
     // String table
-    SSELex_API uint16_t       C_GetStringTableCount(intptr_t Handle);
-    SSELex_API int            C_GetStringUtf8(intptr_t Handle, uint16_t Index, char* Buffer, int BufferSize);
-    SSELex_API int            C_GetStringWide(intptr_t Handle, uint16_t Index, wchar_t* Buffer, int BufferSize);
+    PEX_READER_API uint16_t       C_GetStringTableCount(intptr_t Handle);
+    PEX_READER_API int            C_GetStringUtf8(intptr_t Handle, uint16_t Index, char* Buffer, int BufferSize);
+    PEX_READER_API int            C_GetStringWide(intptr_t Handle, uint16_t Index, wchar_t* Buffer, int BufferSize);
 
     // Debug info
-    SSELex_API uint8_t        C_HasDebugInfo(intptr_t Handle);
-    SSELex_API uint64_t       C_GetDebugModificationTime(intptr_t Handle);
-    SSELex_API uint16_t       C_GetDebugFunctionCount(intptr_t Handle);
-    SSELex_API int            C_GetDebugFunctionInfo(intptr_t Handle, uint16_t Index,
+    PEX_READER_API uint8_t        C_HasDebugInfo(intptr_t Handle);
+    PEX_READER_API uint64_t       C_GetDebugModificationTime(intptr_t Handle);
+    PEX_READER_API uint16_t       C_GetDebugFunctionCount(intptr_t Handle);
+    PEX_READER_API int            C_GetDebugFunctionInfo(intptr_t Handle, uint16_t Index,
         uint16_t* ObjectNameIndex, uint16_t* StateNameIndex,
         uint16_t* FunctionNameIndex, uint8_t* FunctionType,
         uint16_t** LineNumbers, int* LineCount);
 
     // User flags
-    SSELex_API uint16_t       C_GetUserFlagCount(intptr_t Handle);
-    SSELex_API int            C_GetUserFlagInfo(intptr_t Handle, uint16_t Index,
+    PEX_READER_API uint16_t       C_GetUserFlagCount(intptr_t Handle);
+    PEX_READER_API int            C_GetUserFlagInfo(intptr_t Handle, uint16_t Index,
         uint16_t* FlagNameIndex, uint8_t* FlagIndex);
 
     // Objects
-    SSELex_API uint16_t       C_GetObjectCount(intptr_t Handle);
-    SSELex_API int            C_GetObjectInfo(intptr_t Handle, uint16_t Index,
+    PEX_READER_API uint16_t       C_GetObjectCount(intptr_t Handle);
+    PEX_READER_API int            C_GetObjectInfo(intptr_t Handle, uint16_t Index,
         uint16_t* NameIndex, uint32_t* Size);
-    SSELex_API int            C_GetObjectData(intptr_t Handle, uint16_t ObjectIndex,
+    PEX_READER_API int            C_GetObjectData(intptr_t Handle, uint16_t ObjectIndex,
         uint16_t* ParentClassName, uint16_t* DocString,
         uint32_t* UserFlags, uint16_t* AutoStateName);
 
     // Variables
-    SSELex_API uint16_t       C_GetVariableCount(intptr_t Handle, uint16_t ObjectIndex);
-    SSELex_API int            C_GetVariableInfo(intptr_t Handle, uint16_t ObjectIndex,
+    PEX_READER_API uint16_t       C_GetVariableCount(intptr_t Handle, uint16_t ObjectIndex);
+    PEX_READER_API int            C_GetVariableInfo(intptr_t Handle, uint16_t ObjectIndex,
         uint16_t VarIndex, uint16_t* Name, uint16_t* TypeName,
         uint32_t* UserFlags, uint8_t* DataType, void* DataValue);
 
     // Properties
-    SSELex_API uint16_t       C_GetPropertyCount(intptr_t Handle, uint16_t ObjectIndex);
-    SSELex_API int            C_GetPropertyInfo(intptr_t Handle, uint16_t ObjectIndex,
+    PEX_READER_API uint16_t       C_GetPropertyCount(intptr_t Handle, uint16_t ObjectIndex);
+    PEX_READER_API int            C_GetPropertyInfo(intptr_t Handle, uint16_t ObjectIndex,
         uint16_t PropIndex, uint16_t* Name, uint16_t* Type,
         uint16_t* Docstring, uint32_t* UserFlags,
         uint8_t* Flags, uint16_t* AutoVarName);
 
     // States
-    SSELex_API uint16_t       C_GetStateCount(intptr_t Handle, uint16_t ObjectIndex);
-    SSELex_API int            C_GetStateInfo(intptr_t Handle, uint16_t ObjectIndex,
+    PEX_READER_API uint16_t       C_GetStateCount(intptr_t Handle, uint16_t ObjectIndex);
+    PEX_READER_API int            C_GetStateInfo(intptr_t Handle, uint16_t ObjectIndex,
         uint16_t StateIndex, uint16_t* Name, uint16_t* NumFunctions);
 
     // Functions
-    SSELex_API int            C_GetStateFunctionInfo(intptr_t Handle,
+    PEX_READER_API int            C_GetStateFunctionInfo(intptr_t Handle,
         uint16_t ObjectIndex, uint16_t StateIndex, uint16_t FuncIndex,
         uint16_t* FunctionName, uint16_t* ReturnType, uint16_t* DocString,
         uint32_t* UserFlags, uint8_t* Flags,
         uint16_t* NumParams, uint16_t* NumLocals, uint16_t* NumInstructions);
 
     // Instructions
-    SSELex_API int            C_GetInstructionInfo(intptr_t Handle,
+    PEX_READER_API int            C_GetInstructionInfo(intptr_t Handle,
         uint16_t ObjectIndex, uint16_t StateIndex,
         uint16_t FuncIndex, uint16_t InstrIndex,
         uint8_t* Opcode, uint16_t* ArgCount);
-    SSELex_API int            C_GetInstructionArgument(intptr_t Handle,
+    PEX_READER_API int            C_GetInstructionArgument(intptr_t Handle,
         uint16_t ObjectIndex, uint16_t StateIndex,
         uint16_t FuncIndex, uint16_t InstrIndex, uint16_t ArgIndex,
         uint8_t* Type, void* Value);
 
     // Function parameters
-    SSELex_API uint16_t       C_GetFunctionParamCount(intptr_t Handle,
+    PEX_READER_API uint16_t       C_GetFunctionParamCount(intptr_t Handle,
         uint16_t ObjectIndex, uint16_t StateIndex, uint16_t FuncIndex);
-    SSELex_API int            C_GetFunctionParamInfo(intptr_t Handle,
+    PEX_READER_API int            C_GetFunctionParamInfo(intptr_t Handle,
         uint16_t ObjectIndex, uint16_t StateIndex,
         uint16_t FuncIndex, uint16_t ParamIndex,
         uint16_t* Name, uint16_t* Type);
 
     // Function locals
-    SSELex_API uint16_t       C_GetFunctionLocalCount(intptr_t Handle,
+    PEX_READER_API uint16_t       C_GetFunctionLocalCount(intptr_t Handle,
         uint16_t ObjectIndex, uint16_t StateIndex, uint16_t FuncIndex);
-    SSELex_API int            C_GetFunctionLocalInfo(intptr_t Handle,
+    PEX_READER_API int            C_GetFunctionLocalInfo(intptr_t Handle,
         uint16_t ObjectIndex, uint16_t StateIndex,
         uint16_t FuncIndex, uint16_t LocalIndex,
         uint16_t* Name, uint16_t* Type);
 
     // Memory management
-    SSELex_API void           C_FreeBuffer(void* Buffer);
+    PEX_READER_API void           C_FreeBuffer(void* Buffer);
 }
 
 // ============================================================
@@ -755,29 +738,4 @@ int C_GetFunctionLocalInfo(intptr_t Handle,
 void C_FreeBuffer(void* Buffer)
 {
     pex::interop::FreeLineNumbers(static_cast<uint16_t*>(Buffer));
-}
-
-// ============================================================
-//  Entry point for manual testing
-// ============================================================
-
-int main()
-{
-    SetConsoleToUTF8();
-
-    intptr_t H1 = C_CreateInstance();
-    intptr_t H2 = C_CreateInstance();
-
-    C_ReadPex(H1, TEXT("C:\\test\\file1.pex"));
-    C_ReadPex(H2, TEXT("C:\\test\\file2.pex"));
-
-    std::cout << "File1 object count: " << C_GetObjectCount(H1) << "\n";
-    std::cout << "File2 object count: " << C_GetObjectCount(H2) << "\n";
-
-    C_DestroyInstance(H1);
-    C_DestroyInstance(H2);
-
-    std::cout << "Press Enter to exit...";
-    std::cin.get();
-    return 0;
 }

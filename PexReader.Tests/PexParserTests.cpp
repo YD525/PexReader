@@ -350,6 +350,65 @@ namespace
         return bytes;
     }
 
+    std::wstring ReadEnvironmentValue(const wchar_t* name)
+    {
+        const DWORD requiredLength = GetEnvironmentVariableW(name, nullptr, 0);
+        if (requiredLength == 0)
+            return {};
+
+        std::wstring value(requiredLength, L'\0');
+        const DWORD written = GetEnvironmentVariableW(name, &value[0], requiredLength);
+        if (written == 0 || written >= requiredLength)
+            throw std::runtime_error("Unable to read a fuzzing environment variable.");
+
+        value.resize(written);
+        return value;
+    }
+
+    void WriteHexReproducer(
+        const std::filesystem::path& directory,
+        const char* fixtureName,
+        std::size_t offset,
+        std::uint8_t replacement,
+        const std::vector<std::uint8_t>& bytes)
+    {
+        std::filesystem::create_directories(directory);
+        const char digits[] = "0123456789ABCDEF";
+
+        std::ofstream hexOutput(directory / L"current.pex.hex", std::ios::binary | std::ios::trunc);
+        if (!hexOutput)
+            throw std::runtime_error("Unable to create the current fuzz reproducer.");
+
+        for (std::size_t index = 0; index < bytes.size(); ++index)
+        {
+            const std::uint8_t value = bytes[index];
+            hexOutput.put(digits[value >> 4]);
+            hexOutput.put(digits[value & 0x0F]);
+            hexOutput.put((index + 1) % 16 == 0 ? '\n' : ' ');
+        }
+        if (!hexOutput)
+            throw std::runtime_error("Unable to write the current fuzz reproducer.");
+
+        std::ofstream metadata(directory / L"current-case.txt", std::ios::trunc);
+        if (!metadata)
+            throw std::runtime_error("Unable to create the current fuzz metadata.");
+
+        metadata << "Fixture: " << fixtureName << '\n'
+            << "Mutation offset: " << offset << '\n'
+            << "Replacement byte: 0x" << digits[replacement >> 4]
+            << digits[replacement & 0x0F] << '\n';
+        if (!metadata)
+            throw std::runtime_error("Unable to write the current fuzz metadata.");
+    }
+
+    void RemoveHexReproducer(const std::filesystem::path& directory)
+    {
+        std::error_code error;
+        std::filesystem::remove(directory / L"current.pex.hex", error);
+        error.clear();
+        std::filesystem::remove(directory / L"current-case.txt", error);
+    }
+
     void AssertVariableDataEqual(const VariableData& expected, const VariableData& actual)
     {
         Assert::AreEqual(expected.type, actual.type);
@@ -730,7 +789,8 @@ namespace PexReaderTests
                     L"x64" / L"Release" / L"Pex.Interop.dll";
             }
             HMODULE library = LoadLibraryW(libraryPath.c_str());
-            Assert::IsNotNull(library, L"Pex.Interop.dll could not be loaded.");
+            if (library == nullptr)
+                throw std::runtime_error("Pex.Interop.dll could not be loaded.");
 
             const auto createInstance = reinterpret_cast<CreateInstance>(GetProcAddress(library, "C_CreateInstance"));
             const auto destroyInstance =
@@ -738,10 +798,12 @@ namespace PexReaderTests
             const auto readPex = reinterpret_cast<ReadPex>(GetProcAddress(library, "C_ReadPex"));
             const auto getStringTableCount =
                 reinterpret_cast<GetStringTableCount>(GetProcAddress(library, "C_GetStringTableCount"));
-            Assert::IsNotNull(createInstance);
-            Assert::IsNotNull(destroyInstance);
-            Assert::IsNotNull(readPex);
-            Assert::IsNotNull(getStringTableCount);
+            if (createInstance == nullptr || destroyInstance == nullptr ||
+                readPex == nullptr || getStringTableCount == nullptr)
+            {
+                FreeLibrary(library);
+                throw std::runtime_error("A required PexReader C export could not be resolved.");
+            }
 
             const std::intptr_t handle = createInstance();
             Assert::AreNotEqual<std::intptr_t>(0, handle);
@@ -750,6 +812,107 @@ namespace PexReaderTests
             Assert::AreEqual(0, readPex(handle, invalidFile.Path().c_str()));
             Assert::AreEqual<std::uint16_t>(7, getStringTableCount(handle));
             Assert::AreEqual(0, readPex(0, validFile.Path().c_str()));
+
+            destroyInstance(handle);
+            FreeLibrary(library);
+        }
+
+        TEST_METHOD(DeterministicSingleByteMutationsDoNotCrashParserEntryPoints)
+        {
+            if (ReadEnvironmentValue(L"PEX_RUN_FUZZ_TESTS") != L"1")
+                return;
+
+            const std::wstring failureDirectoryValue =
+                ReadEnvironmentValue(L"PEX_FUZZ_FAILURE_DIRECTORY");
+            Assert::IsFalse(
+                failureDirectoryValue.empty(),
+                L"PEX_FUZZ_FAILURE_DIRECTORY must be set for a fuzzing run.");
+            const std::filesystem::path failureDirectory(failureDirectoryValue);
+
+            using CreateInstance = std::intptr_t(*)();
+            using DestroyInstance = void(*)(std::intptr_t);
+            using ReadPex = int(*)(std::intptr_t, const wchar_t*);
+
+            const std::filesystem::path testDirectory = GetTestModuleDirectory();
+            std::filesystem::path libraryPath = testDirectory / L"Pex.Interop.dll";
+            if (!std::filesystem::exists(libraryPath))
+            {
+                libraryPath = testDirectory.parent_path().parent_path().parent_path() /
+                    L"x64" / L"Release" / L"Pex.Interop.dll";
+            }
+            HMODULE library = LoadLibraryW(libraryPath.c_str());
+            if (library == nullptr)
+                throw std::runtime_error("Pex.Interop.dll could not be loaded for fuzzing.");
+
+            const auto createInstance = reinterpret_cast<CreateInstance>(GetProcAddress(library, "C_CreateInstance"));
+            const auto destroyInstance =
+                reinterpret_cast<DestroyInstance>(GetProcAddress(library, "C_DestroyInstance"));
+            const auto readPex = reinterpret_cast<ReadPex>(GetProcAddress(library, "C_ReadPex"));
+            if (createInstance == nullptr || destroyInstance == nullptr || readPex == nullptr)
+            {
+                FreeLibrary(library);
+                throw std::runtime_error("A required PexReader C export could not be resolved for fuzzing.");
+            }
+
+            const std::intptr_t handle = createInstance();
+            Assert::AreNotEqual<std::intptr_t>(0, handle);
+
+            struct FuzzSeed
+            {
+                const wchar_t* fileName;
+                const char* displayName;
+            };
+            const FuzzSeed seeds[] = {
+                { L"skyrim-3.1.pex.hex", "skyrim-3.1.pex.hex" },
+                { L"skyrim-se-3.2-unicode.pex.hex", "skyrim-se-3.2-unicode.pex.hex" }
+            };
+
+            for (const FuzzSeed& seed : seeds)
+            {
+                const std::vector<std::uint8_t> original = ReadHexFixture(seed.fileName);
+                for (std::size_t offset = 0; offset < original.size(); ++offset)
+                {
+                    const std::uint8_t replacements[] = {
+                        0x00,
+                        0xFF,
+                        static_cast<std::uint8_t>(original[offset] ^ 0xA5)
+                    };
+                    for (std::uint8_t replacement : replacements)
+                    {
+                        if (replacement == original[offset])
+                            continue;
+
+                        std::vector<std::uint8_t> candidate = original;
+                        candidate[offset] = replacement;
+                        WriteHexReproducer(
+                            failureDirectory,
+                            seed.displayName,
+                            offset,
+                            replacement,
+                            candidate);
+
+                        TemporaryPexFile input;
+                        input.Write(candidate);
+                        const bool directParserAccepted = [&input]()
+                        {
+                            try
+                            {
+                                PexData data;
+                                data.Load(input.Path().wstring());
+                                return true;
+                            }
+                            catch (const std::exception&)
+                            {
+                                return false;
+                            }
+                        }();
+                        (void)directParserAccepted;
+
+                        readPex(handle, input.Path().c_str());
+                        RemoveHexReproducer(failureDirectory);
+                    }
+                }
+            }
 
             destroyInstance(handle);
             FreeLibrary(library);

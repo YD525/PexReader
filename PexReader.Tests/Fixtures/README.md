@@ -14,3 +14,6 @@ materializes them as temporary `.pex` files before invoking the parser.
 
 New parser and ownership bug fixes must add the smallest synthetic fixture or boundary mutation that reproduces the
 defect. Crash and fuzzing inputs must be minimized and converted to this reviewable hexadecimal form before commit.
+The scheduled sanitizer run derives each case from these small seeds with exactly one changed byte. Before invoking
+the direct parser and exported C entry point, it records the current hexadecimal input, seed name, byte offset, and
+replacement value so a crash leaves a minimized, reproducible mutation in the failure diagnostics.
