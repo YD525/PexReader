@@ -23,6 +23,12 @@ The resulting library is written to `x64\Release\PEX.Interop.dll`.
 The parser suite runs non-interactively through the Visual Studio C++ test runner. Its synthetic PEX fixtures and
 their license status are documented in `PexReader.Tests/Fixtures/README.md`.
 
+## Native ABI
+
+[PexReaderApi.h](PexReader/PexReaderApi.h) is the canonical C-compatible ABI contract. It defines the ABI version,
+calling convention, fixed-width types, value layout, encodings, buffer units, status values, and ownership rules.
+Consumers can compare `C_GetAbiVersion()` with `PEX_READER_ABI_VERSION` before using the remaining exports.
+
 The build script enforces warning level 4 and treats compiler and linker warnings as errors. Pull requests run the
 Release x64 build, all regression tests, and MSVC native analysis on Windows Server 2022 with the Visual Studio 2022
 v143 toolset. A weekly and manually dispatchable job repeats the tests under AddressSanitizer and applies
@@ -33,7 +39,7 @@ diagnostics.
 ## Releases
 
 Push a version tag matching `v*` to build the x64 library and create a GitHub Release. Each release contains
-`PEX.Interop.dll` and `PEX.Interop.dll.sha256`.
+`PEX.Interop.dll`, `PexReaderApi.h`, and a SHA-256 checksum for each file.
 
 # Contributors:
 

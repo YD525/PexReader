@@ -40,12 +40,18 @@ jobs:
         shell: pwsh
         run: |
           $artifact = ".\x64\Release\PEX.Interop.dll"
+          $header = ".\PexReader\PexReaderApi.h"
           if (-not (Test-Path -LiteralPath $artifact)) {
               throw "Release artifact was not produced: $artifact"
+          }
+          if (-not (Test-Path -LiteralPath $header)) {
+              throw "Public ABI header was not found: $header"
           }
 
           $hash = (Get-FileHash -LiteralPath $artifact -Algorithm SHA256).Hash.ToLowerInvariant()
           "$hash  PEX.Interop.dll" | Set-Content "$artifact.sha256" -Encoding ascii
+          $headerHash = (Get-FileHash -LiteralPath $header -Algorithm SHA256).Hash.ToLowerInvariant()
+          "$headerHash  PexReaderApi.h" | Set-Content "$header.sha256" -Encoding ascii
 
       - name: Publish GitHub Release
         shell: pwsh
@@ -55,5 +61,7 @@ jobs:
           gh release create "$env:GITHUB_REF_NAME" `
             ".\x64\Release\PEX.Interop.dll" `
             ".\x64\Release\PEX.Interop.dll.sha256" `
+            ".\PexReader\PexReaderApi.h" `
+            ".\PexReader\PexReaderApi.h.sha256" `
             --generate-notes `
             --verify-tag

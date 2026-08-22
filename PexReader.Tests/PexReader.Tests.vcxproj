@@ -84,6 +84,9 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="LineNumberBufferTests.cpp" />
+    <ClCompile Include="PexReaderHeaderC.c">
+      <CompileAs>CompileAsC</CompileAs>
+    </ClCompile>
     <ClCompile Include="PexParserTests.cpp" />
   </ItemGroup>
   <ItemGroup>

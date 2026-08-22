@@ -150,6 +150,7 @@
   <ItemGroup>
     <ClInclude Include="LineNumberBuffer.h" />
     <ClInclude Include="PexHeader.cpp" />
+    <ClInclude Include="PexReaderApi.h" />
     <ClInclude Include="Record.h" />
     <ClInclude Include="resource.h" />
   </ItemGroup>

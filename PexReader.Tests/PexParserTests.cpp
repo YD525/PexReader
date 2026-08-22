@@ -1,6 +1,7 @@
 #include "CppUnitTest.h"
 
 #include "../PexReader/PexHelper.cpp"
+#include "../PexReader/PexReaderApi.h"
 
 #include <algorithm>
 #include <atomic>
@@ -9,6 +10,7 @@
 #include <filesystem>
 #include <fstream>
 #include <string>
+#include <type_traits>
 #include <vector>
 
 #define NOMINMAX
@@ -766,6 +768,211 @@ namespace PexReaderTests
             Assert::AreEqual<std::uint16_t>(7, data.stringTable.count);
             Assert::AreEqual<std::uint16_t>(1, data.objectCount);
             Assert::AreEqual<std::uint16_t>(1, data.objects[0].data.states[0].numFunctions);
+        }
+
+        TEST_METHOD(PublicAbiHeaderMatchesBinaryAndLifecycleContract)
+        {
+            using ExpectedAbiVersion = std::uint32_t(PEX_READER_CALL*)() noexcept;
+            using ExpectedCreateInstance = PexReaderHandle(PEX_READER_CALL*)() noexcept;
+            static_assert(
+                std::is_same<decltype(&C_GetAbiVersion), ExpectedAbiVersion>::value,
+                "The ABI version calling convention changed.");
+            static_assert(
+                std::is_same<decltype(&C_CreateInstance), ExpectedCreateInstance>::value,
+                "The instance calling convention changed.");
+            static_assert(sizeof(PexReaderHandle) == sizeof(void*), "PEX handles must remain pointer-sized.");
+            static_assert(sizeof(PexReaderValue) == 4, "PEX values must retain their four-byte layout.");
+
+            const Fixture fixture = CreateFixture();
+            TemporaryPexFile input;
+            TemporaryPexFile output;
+            input.Write(fixture.bytes);
+
+            const std::filesystem::path testDirectory = GetTestModuleDirectory();
+            std::filesystem::path libraryPath = testDirectory / L"Pex.Interop.dll";
+            if (!std::filesystem::exists(libraryPath))
+            {
+                libraryPath = testDirectory.parent_path().parent_path().parent_path() /
+                    L"x64" / L"Release" / L"Pex.Interop.dll";
+            }
+
+            HMODULE library = LoadLibraryW(libraryPath.c_str());
+            if (library == nullptr)
+                throw std::runtime_error("Pex.Interop.dll could not be loaded for ABI validation.");
+
+            const char* exportNames[]{
+                "C_GetAbiVersion", "C_GetLastStatus", "C_GetLastErrorUtf8",
+                "C_GetVersion", "C_GetVersionLength", "C_CreateInstance", "C_DestroyInstance",
+                "C_ReadPex", "C_ModifyStringTable", "C_SavePex", "C_Close",
+                "C_GetHeaderSourceFileName", "C_GetHeaderUsername", "C_GetHeaderMachineName",
+                "C_GetHeaderMagic", "C_GetHeaderMajorVersion", "C_GetHeaderMinorVersion",
+                "C_GetHeaderGameId", "C_GetHeaderCompilationTime", "C_GetStringTableCount",
+                "C_GetStringUtf8", "C_GetStringWide", "C_HasDebugInfo",
+                "C_GetDebugModificationTime", "C_GetDebugFunctionCount", "C_GetDebugFunctionInfo",
+                "C_GetUserFlagCount", "C_GetUserFlagInfo", "C_GetObjectCount", "C_GetObjectInfo",
+                "C_GetObjectData", "C_GetVariableCount", "C_GetVariableInfo", "C_GetPropertyCount",
+                "C_GetPropertyInfo", "C_GetStateCount", "C_GetStateInfo", "C_GetStateFunctionInfo",
+                "C_GetInstructionInfo", "C_GetInstructionArgument", "C_GetFunctionParamCount",
+                "C_GetFunctionParamInfo", "C_GetFunctionLocalCount", "C_GetFunctionLocalInfo",
+                "C_FreeBuffer"
+            };
+            for (const char* exportName : exportNames)
+            {
+                if (GetProcAddress(library, exportName) == nullptr)
+                {
+                    FreeLibrary(library);
+                    throw std::runtime_error(std::string("Missing PexReader export: ") + exportName);
+                }
+            }
+
+#define PEX_RESOLVE(name) reinterpret_cast<decltype(&name)>(GetProcAddress(library, #name))
+            const auto getAbiVersion = PEX_RESOLVE(C_GetAbiVersion);
+            const auto getLastStatus = PEX_RESOLVE(C_GetLastStatus);
+            const auto getLastError = PEX_RESOLVE(C_GetLastErrorUtf8);
+            const auto getVersion = PEX_RESOLVE(C_GetVersion);
+            const auto getVersionLength = PEX_RESOLVE(C_GetVersionLength);
+            const auto createInstance = PEX_RESOLVE(C_CreateInstance);
+            const auto destroyInstance = PEX_RESOLVE(C_DestroyInstance);
+            const auto readPex = PEX_RESOLVE(C_ReadPex);
+            const auto modifyStringTable = PEX_RESOLVE(C_ModifyStringTable);
+            const auto savePex = PEX_RESOLVE(C_SavePex);
+            const auto close = PEX_RESOLVE(C_Close);
+            const auto getHeaderSourceFileName = PEX_RESOLVE(C_GetHeaderSourceFileName);
+            const auto getHeaderUsername = PEX_RESOLVE(C_GetHeaderUsername);
+            const auto getHeaderMachineName = PEX_RESOLVE(C_GetHeaderMachineName);
+            const auto getHeaderMagic = PEX_RESOLVE(C_GetHeaderMagic);
+            const auto getHeaderMajorVersion = PEX_RESOLVE(C_GetHeaderMajorVersion);
+            const auto getHeaderMinorVersion = PEX_RESOLVE(C_GetHeaderMinorVersion);
+            const auto getHeaderGameId = PEX_RESOLVE(C_GetHeaderGameId);
+            const auto getHeaderCompilationTime = PEX_RESOLVE(C_GetHeaderCompilationTime);
+            const auto getStringTableCount = PEX_RESOLVE(C_GetStringTableCount);
+            const auto getStringUtf8 = PEX_RESOLVE(C_GetStringUtf8);
+            const auto getStringWide = PEX_RESOLVE(C_GetStringWide);
+            const auto hasDebugInfo = PEX_RESOLVE(C_HasDebugInfo);
+            const auto getDebugModificationTime = PEX_RESOLVE(C_GetDebugModificationTime);
+            const auto getDebugFunctionCount = PEX_RESOLVE(C_GetDebugFunctionCount);
+            const auto getDebugFunctionInfo = PEX_RESOLVE(C_GetDebugFunctionInfo);
+            const auto getUserFlagCount = PEX_RESOLVE(C_GetUserFlagCount);
+            const auto getUserFlagInfo = PEX_RESOLVE(C_GetUserFlagInfo);
+            const auto getObjectCount = PEX_RESOLVE(C_GetObjectCount);
+            const auto getObjectInfo = PEX_RESOLVE(C_GetObjectInfo);
+            const auto getObjectData = PEX_RESOLVE(C_GetObjectData);
+            const auto getVariableCount = PEX_RESOLVE(C_GetVariableCount);
+            const auto getVariableInfo = PEX_RESOLVE(C_GetVariableInfo);
+            const auto getPropertyCount = PEX_RESOLVE(C_GetPropertyCount);
+            const auto getPropertyInfo = PEX_RESOLVE(C_GetPropertyInfo);
+            const auto getStateCount = PEX_RESOLVE(C_GetStateCount);
+            const auto getStateInfo = PEX_RESOLVE(C_GetStateInfo);
+            const auto getStateFunctionInfo = PEX_RESOLVE(C_GetStateFunctionInfo);
+            const auto getInstructionInfo = PEX_RESOLVE(C_GetInstructionInfo);
+            const auto getInstructionArgument = PEX_RESOLVE(C_GetInstructionArgument);
+            const auto getFunctionParamCount = PEX_RESOLVE(C_GetFunctionParamCount);
+            const auto getFunctionParamInfo = PEX_RESOLVE(C_GetFunctionParamInfo);
+            const auto getFunctionLocalCount = PEX_RESOLVE(C_GetFunctionLocalCount);
+            const auto getFunctionLocalInfo = PEX_RESOLVE(C_GetFunctionLocalInfo);
+            const auto freeBuffer = PEX_RESOLVE(C_FreeBuffer);
+#undef PEX_RESOLVE
+
+            Assert::AreEqual<std::uint32_t>(PEX_READER_ABI_VERSION, getAbiVersion());
+            Assert::AreEqual(7, getVersionLength());
+            Assert::AreEqual(std::string("1.0.1.6"), std::string(getVersion(), getVersionLength()));
+
+            Assert::AreEqual(0, readPex(0, input.Path().c_str()));
+            Assert::AreEqual<PexReaderStatus>(PEX_READER_STATUS_INVALID_ARGUMENT, getLastStatus());
+            const int32_t errorLength = getLastError(nullptr, 0);
+            Assert::IsTrue(errorLength > 0);
+            std::vector<std::uint8_t> error(static_cast<std::size_t>(errorLength) + 1);
+            Assert::AreEqual(errorLength, getLastError(error.data(), static_cast<int32_t>(error.size())));
+            Assert::AreEqual<PexReaderStatus>(PEX_READER_STATUS_INVALID_ARGUMENT, getLastStatus());
+
+            const PexReaderHandle handle = createInstance();
+            Assert::AreNotEqual<PexReaderHandle>(0, handle);
+            Assert::AreEqual(1, readPex(handle, input.Path().c_str()));
+            Assert::AreEqual<PexReaderStatus>(PEX_READER_STATUS_OK, getLastStatus());
+            Assert::IsTrue(std::wstring(getHeaderSourceFileName(handle)) == L"Fixture.psc");
+            Assert::IsTrue(std::wstring(getHeaderUsername(handle)) == L"Tester");
+            Assert::IsTrue(std::wstring(getHeaderMachineName(handle)) == L"BuildHost");
+            Assert::AreEqual<std::uint32_t>(0xFA57C0DE, getHeaderMagic(handle));
+            Assert::AreEqual<std::uint8_t>(3, getHeaderMajorVersion(handle));
+            Assert::AreEqual<std::uint8_t>(2, getHeaderMinorVersion(handle));
+            Assert::AreEqual<std::uint16_t>(1, getHeaderGameId(handle));
+            Assert::AreEqual<std::uint64_t>(123456789, getHeaderCompilationTime(handle));
+            Assert::AreEqual<std::uint16_t>(7, getStringTableCount(handle));
+
+            const int32_t utf8Length = getStringUtf8(handle, 1, nullptr, 0);
+            std::vector<char> utf8(static_cast<std::size_t>(utf8Length) + 1);
+            Assert::AreEqual(utf8Length, getStringUtf8(handle, 1, utf8.data(), static_cast<int32_t>(utf8.size())));
+            const int32_t wideLength = getStringWide(handle, 1, nullptr, 0);
+            std::vector<wchar_t> wide(static_cast<std::size_t>(wideLength) + 1);
+            Assert::AreEqual(wideLength, getStringWide(handle, 1, wide.data(), static_cast<int32_t>(wide.size())));
+            char tooSmall[1]{};
+            Assert::AreEqual(utf8Length, getStringUtf8(handle, 1, tooSmall, 1));
+            Assert::AreEqual<PexReaderStatus>(PEX_READER_STATUS_BUFFER_TOO_SMALL, getLastStatus());
+
+            Assert::AreEqual<std::uint8_t>(1, hasDebugInfo(handle));
+            Assert::AreEqual<std::uint64_t>(987654321, getDebugModificationTime(handle));
+            Assert::AreEqual<std::uint16_t>(1, getDebugFunctionCount(handle));
+            std::uint16_t objectName = 0;
+            std::uint16_t stateName = 0;
+            std::uint16_t functionName = 0;
+            std::uint8_t functionType = 0;
+            std::uint16_t* lineNumbers = nullptr;
+            int32_t lineCount = 0;
+            Assert::AreEqual(1, getDebugFunctionInfo(
+                handle, 0, &objectName, &stateName, &functionName, &functionType, &lineNumbers, &lineCount));
+            Assert::AreEqual(2, lineCount);
+            Assert::IsNotNull(lineNumbers);
+            freeBuffer(lineNumbers);
+
+            std::uint16_t first = 0;
+            std::uint16_t second = 0;
+            std::uint16_t third = 0;
+            std::uint16_t fourth = 0;
+            std::uint32_t value32 = 0;
+            std::uint8_t value8 = 0;
+            Assert::AreEqual<std::uint16_t>(1, getUserFlagCount(handle));
+            Assert::AreEqual(1, getUserFlagInfo(handle, 0, &first, &value8));
+            Assert::AreEqual<std::uint16_t>(1, getObjectCount(handle));
+            Assert::AreEqual(1, getObjectInfo(handle, 0, &first, &value32));
+            Assert::AreEqual(1, getObjectData(handle, 0, &first, &second, &value32, &third));
+            Assert::AreEqual<std::uint16_t>(1, getVariableCount(handle, 0));
+            PexReaderValue dataValue{};
+            Assert::AreEqual(1, getVariableInfo(
+                handle, 0, 0, &first, &second, &value32, &value8, &dataValue));
+            Assert::AreEqual<std::uint16_t>(2, getPropertyCount(handle, 0));
+            Assert::AreEqual(1, getPropertyInfo(
+                handle, 0, 0, &first, &second, &third, &value32, &value8, &fourth));
+            Assert::AreEqual<std::uint16_t>(1, getStateCount(handle, 0));
+            Assert::AreEqual(1, getStateInfo(handle, 0, 0, &first, &second));
+            std::uint16_t parameterCount = 0;
+            std::uint16_t localCount = 0;
+            std::uint16_t instructionCount = 0;
+            Assert::AreEqual(1, getStateFunctionInfo(
+                handle, 0, 0, 0, &first, &second, &third, &value32, &value8,
+                &parameterCount, &localCount, &instructionCount));
+            Assert::AreEqual(1, getInstructionInfo(handle, 0, 0, 0, 0, &value8, &first));
+            Assert::AreEqual(1, getInstructionArgument(handle, 0, 0, 0, 0, 0, &value8, &dataValue));
+            Assert::AreEqual<std::uint16_t>(1, getFunctionParamCount(handle, 0, 0, 0));
+            Assert::AreEqual(1, getFunctionParamInfo(handle, 0, 0, 0, 0, &first, &second));
+            Assert::AreEqual<std::uint16_t>(1, getFunctionLocalCount(handle, 0, 0, 0));
+            Assert::AreEqual(1, getFunctionLocalInfo(handle, 0, 0, 0, 0, &first, &second));
+            Assert::AreEqual(1, modifyStringTable(handle, 1, "Updated"));
+            Assert::AreEqual(1, savePex(handle, output.Path().c_str()));
+            close(handle);
+            Assert::AreEqual<std::uint16_t>(0, getStringTableCount(handle));
+            destroyInstance(handle);
+            freeBuffer(nullptr);
+
+            for (int repetition = 0; repetition < 512; ++repetition)
+            {
+                const PexReaderHandle repeatedHandle = createInstance();
+                Assert::AreNotEqual<PexReaderHandle>(0, repeatedHandle);
+                Assert::AreEqual(1, readPex(repeatedHandle, input.Path().c_str()));
+                close(repeatedHandle);
+                destroyInstance(repeatedHandle);
+            }
+
+            FreeLibrary(library);
         }
 
         TEST_METHOD(CAbiReportsFailureWithoutReplacingValidState)
