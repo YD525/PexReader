@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 #include "Record.h"
 #include "PexHeader.cpp"
 #include "PexSections.cpp"
@@ -159,20 +159,28 @@ class PexData
     void ReadObjects(PexBinaryReader& reader)
     {
         objectCount = ReadUInt16BE(reader);
-        reader.ValidateCount(objectCount, 24, "Object count");
+        reader.ValidateCount(objectCount, 6, "Object count");
         objects.reserve(objectCount);
 
         for (uint16_t i = 0; i < objectCount; ++i)
         {
             const uint16_t nameIndex = ReadUInt16BE(reader);
             const uint32_t size = ReadUInt32BE(reader);
-            if (size > reader.Remaining())
-                throw std::runtime_error("Object size exceeds the remaining PEX input.");
+
+            // UESP: "size includes itself for some reason, hence size-4"
+            // The `size` field itself occupies 4 bytes, so the actual size of the object data is `size - 4`!!
+            if (size < 4)
+                throw std::runtime_error("Object size field is invalid (less than 4).");
+
+            const uint32_t dataSize = size - 4;
+            if (dataSize > reader.Remaining())
+                throw std::runtime_error("Object data size exceeds the remaining PEX input.");
 
             objects.emplace_back(nameIndex, size);
             const std::uint64_t objectDataStart = reader.Position();
             ReadObjectData(reader, objects.back().data);
-            if (reader.Position() - objectDataStart != size)
+
+            if (reader.Position() - objectDataStart != dataSize)
                 throw std::runtime_error("Object size does not match the parsed object data.");
         }
     }

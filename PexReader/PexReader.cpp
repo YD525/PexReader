@@ -915,6 +915,27 @@ int32_t PEX_READER_CALL C_GetStringWide(
     });
 }
 
+
+#ifdef _DEBUG
+int main()
+{
+    const wchar_t* TestPath =
+        L"C:\\Users\\52508\\Desktop\\1TestMod\\Chatty NPCs-133266-1-5-1737407563\\scripts\\FollNeg25.pex";
+
+    PexReaderHandle Handle = C_CreateInstance();
+    if (Handle == 0)
+    {
+
+    }
+
+
+     C_ReadPex(Handle, TestPath);
+
+
+    return 0;
+}
+#endif
+
 PEX_ABI_HANDLE_RETURN(uint8_t, C_HasDebugInfo, 0, (PexReaderHandle handle), (handle))
 PEX_ABI_HANDLE_RETURN(uint64_t, C_GetDebugModificationTime, 0, (PexReaderHandle handle), (handle))
 PEX_ABI_HANDLE_RETURN(uint16_t, C_GetDebugFunctionCount, 0, (PexReaderHandle handle), (handle))
@@ -986,3 +1007,5 @@ PEX_ABI_VOID(C_FreeBuffer, (void* buffer), (buffer))
 #undef PEX_ABI_HANDLE_RETURN
 #undef PEX_ABI_VOID
 #undef PEX_ABI_HANDLE_VOID
+
+
