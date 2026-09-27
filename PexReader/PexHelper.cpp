@@ -167,11 +167,11 @@ class PexData
             const uint16_t nameIndex = ReadUInt16BE(reader);
             const uint32_t size = ReadUInt32BE(reader);
 
-            // UESP: "size includes itself for some reason, hence size-4"
-            // The `size` field itself occupies 4 bytes, so the actual size of the object data is `size - 4`!!
             if (size < 4)
                 throw std::runtime_error("Object size field is invalid (less than 4).");
 
+            // UESP: "size includes itself for some reason, hence size-4"
+            // The `size` field itself occupies 4 bytes, so the actual size of the object data is `size - 4`!!
             const uint32_t dataSize = size - 4;
             if (dataSize > reader.Remaining())
                 throw std::runtime_error("Object data size exceeds the remaining PEX input.");
